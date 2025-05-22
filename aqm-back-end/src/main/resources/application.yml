@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/air_quality_monitoring
+    username: root
+    password: @Trung123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+jwt:
+  secret: your-super-secret-jwt-key
+  expiration: 86400000  # 1 day in milliseconds
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
