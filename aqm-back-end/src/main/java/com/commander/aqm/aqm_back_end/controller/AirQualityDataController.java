@@ -2,6 +2,7 @@ package com.commander.aqm.aqm_back_end.controller;
 
 import com.commander.aqm.aqm_back_end.model.AirQualityData;
 import com.commander.aqm.aqm_back_end.repository.AirQualityDataRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/data")
+@Tag(name = "AirQualityData APIs", description = "Manage airqualitydata")
 @RequiredArgsConstructor
 public class AirQualityDataController {
 

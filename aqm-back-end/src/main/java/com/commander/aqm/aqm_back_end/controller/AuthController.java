@@ -5,6 +5,9 @@ import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.model.User;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
 import com.commander.aqm.aqm_back_end.security.JwtUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Login & Registration APIs")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -19,6 +23,8 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
 
+    @Operation(summary = "Register a new user")
+    @ApiResponse(responseCode = "200", description = "User registered successfully")
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
         if (userRepo.existsByUsername(request.getUsername())) {

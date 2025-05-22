@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Configuration
@@ -39,4 +40,26 @@ public class DataSeeder {
             }
         };
     }
+
+    @Bean
+    CommandLineRunner demoSensorData(LocationRepository locRepo, SensorRepository sensorRepo, AirQualityDataRepository dataRepo) {
+        return args -> {
+            Location loc = locRepo.findAll().stream().findFirst().orElse(null);
+            Sensor sensor = sensorRepo.findAll().stream().findFirst().orElse(null);
+
+            if (loc != null && sensor != null) {
+                for (int i = 0; i < 24; i++) {
+                    AirQualityData data = new AirQualityData();
+                    data.setLocation(loc);
+                    data.setSensor(sensor);
+                    data.setTimestampUtc(LocalDateTime.now().minusHours(i));
+                    data.setPm25(20f + i);
+                    data.setPm10(30f + i);
+                    data.setAqi(50 + i);
+                    dataRepo.save(data);
+                }
+            }
+        };
+    }
+
 }

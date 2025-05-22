@@ -28,7 +28,7 @@ import java.io.IOException;
 public class SecurityConfig {
 
     private final JwtUtils jwtUtils;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsService userDetailsService; // Now this will be found
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
