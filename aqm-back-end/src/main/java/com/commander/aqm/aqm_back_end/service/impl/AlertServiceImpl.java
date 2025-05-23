@@ -32,7 +32,7 @@ public class AlertServiceImpl implements AlertService {
                     .pollutant("PM2.5")
                     .value(pm25)
                     .triggeredAt(LocalDateTime.now())
-                    .read(false)
+                    .isRead(false)
                     .build());
         }
 
@@ -43,7 +43,7 @@ public class AlertServiceImpl implements AlertService {
                     .pollutant("PM10")
                     .value(pm10)
                     .triggeredAt(LocalDateTime.now())
-                    .read(false)
+                    .isRead(false)
                     .build());
         }
 
@@ -54,14 +54,14 @@ public class AlertServiceImpl implements AlertService {
                     .pollutant("AQI")
                     .value(aqi)
                     .triggeredAt(LocalDateTime.now())
-                    .read(false)
+                    .isRead(false)
                     .build());
         }
     }
 
     @Override
     public List<Alert> getUnreadAlerts(User user) {
-        return alertRepo.findByUserAndReadFalse(user);
+        return alertRepo.findByUserAndIsReadFalse(user);
     }
 
     @Override

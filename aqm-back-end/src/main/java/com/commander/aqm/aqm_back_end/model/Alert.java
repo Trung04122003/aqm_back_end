@@ -28,5 +28,6 @@ public class Alert {
 
     private LocalDateTime triggeredAt;
 
-    private Boolean read = false;
+    @Column(name = "is_read")
+    private Boolean isRead;
 }

@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface AlertRepository extends JpaRepository<Alert, Long> {
-    List<Alert> findByUserAndReadFalse(User user);
+    List<Alert> findByUserAndIsReadFalse(User user);
     List<Alert> findByUser(User user);
 }
