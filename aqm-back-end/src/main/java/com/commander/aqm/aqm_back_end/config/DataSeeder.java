@@ -19,13 +19,15 @@ public class DataSeeder {
     private final SensorRepository sensorRepo;
     private final AirQualityDataRepository airRepo;
     private final WeatherDataRepository weatherRepo;
+    private final ForecastRepository forecastRepository;
 
     @Bean
     public CommandLineRunner seedData() {
         return args -> {
+            Location loc;
             if(locationRepo.count() == 0) {
-// 📍 Seed Location
-                Location loc = new Location();
+                // 📍 Seed Location
+                loc = new Location();
                 loc.setName("Hanoi");
                 loc.setLatitude(21.0285);
                 loc.setLongitude(105.8542);
@@ -70,7 +72,21 @@ public class DataSeeder {
                     w.setTimestampUtc(LocalDateTime.now().minusHours(i));
                     weatherRepo.save(w);
                 }
+            } else {
+                loc = locationRepo.findAll().get(0); // reuse existing location
             }
+            //Seed Forecast
+            Forecast forecast = Forecast.builder()
+                    .location(loc)
+                    .timestampUtc(LocalDateTime.now().plusHours(6))
+                    .predictedPm25(22.5f)
+                    .predictedPm10(36.0f)
+                    .predictedAqi(80f)
+                    .modelVersion("LSTM-1.0")
+                    .build();
+
+            forecastRepository.save(forecast);
+            System.out.println("🌤️ Forecast seeded for location ID: " + loc.getId());
 
             System.out.println("🌱 Sample data seeded.");
         };
