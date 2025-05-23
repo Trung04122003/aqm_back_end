@@ -17,27 +17,62 @@ public class DataSeeder {
 
     private final LocationRepository locationRepo;
     private final SensorRepository sensorRepo;
+    private final AirQualityDataRepository airRepo;
+    private final WeatherDataRepository weatherRepo;
 
     @Bean
-    CommandLineRunner runner() {
+    public CommandLineRunner seedData() {
         return args -> {
-            if (locationRepo.count() == 0) {
-                Location hanoi = new Location();
-                hanoi.setName("Hanoi City");
-                hanoi.setLatitude(21.0285);
-                hanoi.setLongitude(105.8544);
-                hanoi.setTimezone("Asia/Ho_Chi_Minh");
-                locationRepo.save(hanoi);
+            if(locationRepo.count() == 0) {
+// 📍 Seed Location
+                Location loc = new Location();
+                loc.setName("Hanoi");
+                loc.setLatitude(21.0285);
+                loc.setLongitude(105.8542);
+                loc.setTimezone("Asia/Ho_Chi_Minh");
+                locationRepo.save(loc);
 
+                // 🛰️ Seed Sensor
                 Sensor sensor = new Sensor();
-                sensor.setSerialNumber("SENSOR-0001");
-                sensor.setSensorType("PM2.5");
-                sensor.setModel("Model X");
+                sensor.setSerialNumber("SENSOR-001");
+                sensor.setModel("AQM-Pro");
+                sensor.setSensorType("AirQuality");
                 sensor.setStatus(SensorStatus.ACTIVE);
-                sensor.setInstallationDate(LocalDate.now());
-                sensor.setLocation(hanoi);
+                sensor.setLocation(loc);
+                sensor.setInstallationDate(LocalDate.now().minusDays(30));
                 sensorRepo.save(sensor);
+
+                // 🌫️ Seed Air Quality Data
+                for (int i = 0; i < 10; i++) {
+                    AirQualityData d = new AirQualityData();
+                    d.setLocation(loc);
+                    d.setSensor(sensor);
+                    d.setAqi(50 + i * 5);
+                    d.setPm25(15f + i);
+                    d.setPm10(20f + i * 2);
+                    d.setCo(0.5f);
+                    d.setNo2(0.3f);
+                    d.setO3(0.1f);
+                    d.setSo2(0.05f);
+                    d.setTimestampUtc(LocalDateTime.now().minusHours(i));
+                    airRepo.save(d);
+                }
+
+                // 🌦️ Seed Weather Data
+                for (int i = 0; i < 5; i++) {
+                    WeatherData w = new WeatherData();
+                    w.setLocation(loc);
+                    w.setTemperatureC(28.0f + i);
+                    w.setHumidityPct(60f + i);
+                    w.setPressureHpa(1010f + i);
+                    w.setWindSpeedMps(1.5f + i);
+                    w.setWindDirDeg(180);
+                    w.setTimestampUtc(LocalDateTime.now().minusHours(i));
+                    weatherRepo.save(w);
+                }
             }
+
+            System.out.println("🌱 Sample data seeded.");
         };
     }
 
@@ -61,5 +96,6 @@ public class DataSeeder {
             }
         };
     }
-
 }
+
+

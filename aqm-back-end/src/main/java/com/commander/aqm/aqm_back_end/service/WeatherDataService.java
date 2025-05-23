@@ -8,4 +8,6 @@ public interface WeatherDataService {
     List<WeatherData> getAll();
     WeatherData getById(Long id);
     WeatherData save(WeatherData data);
+
+    List<WeatherData> getWeatherByLocation(Long locationId);
 }

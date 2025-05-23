@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class SensorDto {
 
@@ -21,6 +23,25 @@ public class SensorDto {
     private Long locationId;
 
     private SensorStatus status = SensorStatus.ACTIVE;
+
+    public static SensorDto from(Sensor s) {
+        SensorDto dto = new SensorDto();
+        dto.setId(s.getId());
+        dto.setSerialNumber(s.getSerialNumber());
+        dto.setModel(s.getModel());
+        dto.setSensorType(s.getSensorType());
+        dto.setStatus(s.getStatus());
+        dto.setInstallationDate(s.getInstallationDate());
+        dto.setLocationId(s.getLocation().getId());  // ⚠️ Add field in DTO
+        return dto;
+    }
+
+    private void setInstallationDate(LocalDate installationDate) {
+
+    }
+
+    private void setId(Long id) {
+    }
 
     public Sensor toEntity() {
         Sensor s = new Sensor();

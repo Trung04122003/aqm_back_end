@@ -29,4 +29,9 @@ public class WeatherDataServiceImpl implements WeatherDataService {
     public WeatherData save(WeatherData data) {
         return weatherRepo.save(data);
     }
+
+    @Override
+    public List<WeatherData> getWeatherByLocation(Long locationId) {
+        return weatherRepo.findByLocationId(locationId);
+    }
 }

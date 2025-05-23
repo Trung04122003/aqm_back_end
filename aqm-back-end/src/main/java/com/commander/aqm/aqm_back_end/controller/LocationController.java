@@ -1,5 +1,6 @@
 package com.commander.aqm.aqm_back_end.controller;
 
+import com.commander.aqm.aqm_back_end.dto.LocationDto;
 import com.commander.aqm.aqm_back_end.model.Location;
 import com.commander.aqm.aqm_back_end.service.LocationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +18,9 @@ public class LocationController {
     private final LocationService locationService;
 
     @GetMapping
-    public List<Location> getAll() {
-        return locationService.getAll(); // Consider DTO if exposing to public
+    public List<LocationDto> getAll() {
+        return locationService.getAll().stream()
+                .map(LocationDto::from)
+                .toList();
     }
 }

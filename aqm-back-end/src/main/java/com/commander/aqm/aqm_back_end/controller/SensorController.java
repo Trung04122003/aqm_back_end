@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/sensors")
 @Tag(name = "Sensor APIs", description = "Manage sensor devices and info")
@@ -15,6 +17,13 @@ import org.springframework.web.bind.annotation.*;
 public class SensorController {
 
     private final SensorService sensorService;
+
+    @GetMapping
+    public List<SensorDto> getAllSensors() {
+        return sensorService.getAll().stream()
+                .map(SensorDto::from)
+                .toList();
+    }
 
     @PostMapping
     public Sensor addSensor(@Valid @RequestBody SensorDto dto) {
