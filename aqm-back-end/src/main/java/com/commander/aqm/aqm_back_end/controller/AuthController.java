@@ -4,10 +4,12 @@ import com.commander.aqm.aqm_back_end.dto.AuthRequest;
 import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.model.User;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
+import com.commander.aqm.aqm_back_end.service.PasswordResetService;
 import com.commander.aqm.aqm_back_end.security.JwtUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +24,7 @@ public class AuthController {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final PasswordResetService resetService;
 
     @Operation(summary = "Register a new user")
     @ApiResponse(responseCode = "200", description = "User registered successfully")
@@ -53,5 +56,33 @@ public class AuthController {
 
         String token = jwtUtils.generateToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+
+    @PostMapping("/reset-request")
+    public String resetRequest(@RequestBody ResetRequest req) {
+        return userRepo.findByEmail(req.getEmail())
+                .map(foundUser -> {
+                    String token = resetService.createToken(foundUser);
+                    return "Reset token: " + token;
+                })
+                .orElse("No user found with that email.");
+    }
+
+    @PostMapping("/reset-confirm")
+    public String confirmReset(@RequestBody ResetConfirm req) {
+        boolean success = resetService.validateAndResetPassword(req.getToken(), req.getNewPassword());
+        return success ? "Password reset successful." : "Invalid or expired token.";
+    }
+
+    @Data
+    public static class ResetRequest {
+        private String email;
+    }
+
+    @Data
+    public static class ResetConfirm {
+        private String token;
+        private String newPassword;
     }
 }

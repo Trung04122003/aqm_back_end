@@ -6,27 +6,23 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SupportRequest")
+@Table(name = "PasswordReset")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SupportRequest {
+public class PasswordResetToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @OneToOne(optional = false)
     private User user;
 
-    private String subject;
-    private String message;
+    @Column(nullable = false, unique = true)
+    private String token;
 
-    private LocalDateTime submittedAt;
-
-    @Enumerated(EnumType.STRING)
-    private RequestStatus status;
-
-    private String adminReply;
+    @Column(nullable = false)
+    private LocalDateTime expiry;
 }
