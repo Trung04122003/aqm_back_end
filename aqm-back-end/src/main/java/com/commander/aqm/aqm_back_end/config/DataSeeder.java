@@ -2,11 +2,14 @@ package com.commander.aqm.aqm_back_end.config;
 
 import com.commander.aqm.aqm_back_end.model.*;
 import com.commander.aqm.aqm_back_end.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -158,6 +161,32 @@ public class DataSeeder {
             System.out.println("🧬 All sample data seeded successfully.");
         };
     }
+//    //Lệnh reset DB
+//    @Component
+//    @RequiredArgsConstructor
+//    public class DatabaseResetRunner implements CommandLineRunner {
+//
+//        private final EntityManager entityManager;
+//
+//        @Transactional
+//        @Override
+//        public void run(String... args) {
+//            System.out.println("⚠️  Resetting database tables...");
+//
+//            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE air_quality_data").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE alert").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE alert_threshold").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE forecast").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE location").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE support_request").executeUpdate();
+//            entityManager.createNativeQuery("TRUNCATE TABLE user").executeUpdate();
+//            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
+//
+//            System.out.println("✅  Database reset complete!");
+//        }
+//    }
+
 }
 
 
