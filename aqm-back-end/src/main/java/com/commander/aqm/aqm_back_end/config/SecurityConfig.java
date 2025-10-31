@@ -45,8 +45,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/api/locations").permitAll() // dev only!
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/locations", "/api/data/**").permitAll() // dev only!
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
