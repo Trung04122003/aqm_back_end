@@ -46,11 +46,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/locations", "/api/data/**").permitAll() // dev only!
+                        .requestMatchers("/api/locations/**").permitAll() // dev only!
                         .anyRequest().authenticated()
-                )
-                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
-                        UsernamePasswordAuthenticationFilter.class);
+                );
+//                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
+//                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
