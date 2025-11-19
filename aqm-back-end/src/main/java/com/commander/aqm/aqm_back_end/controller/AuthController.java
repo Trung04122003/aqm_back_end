@@ -1,7 +1,9 @@
 package com.commander.aqm.aqm_back_end.controller;
 
-import com.commander.aqm.aqm_back_end.dto.AuthRequest;
+//import com.commander.aqm.aqm_back_end.dto.AuthRequest;
 import com.commander.aqm.aqm_back_end.dto.AuthResponse;
+import com.commander.aqm.aqm_back_end.dto.LoginRequest;
+import com.commander.aqm.aqm_back_end.dto.RegisterRequest;
 import com.commander.aqm.aqm_back_end.model.User;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
 import com.commander.aqm.aqm_back_end.service.PasswordResetService;
@@ -29,7 +31,8 @@ public class AuthController {
     @Operation(summary = "Register a new user")
     @ApiResponse(responseCode = "200", description = "User registered successfully")
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+
         if (userRepo.existsByUsername(request.getUsername())) {
             return ResponseEntity.badRequest().body("Username already taken");
         }
@@ -45,8 +48,10 @@ public class AuthController {
         return ResponseEntity.ok("Registered successfully");
     }
 
+
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+
         User user = userRepo.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -57,6 +62,36 @@ public class AuthController {
         String token = jwtUtils.generateToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponse(token));
     }
+
+//    @PostMapping("/register")
+//    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
+//        if (userRepo.existsByUsername(request.getUsername())) {
+//            return ResponseEntity.badRequest().body("Username already taken");
+//        }
+//
+//        User user = User.builder()
+//                .username(request.getUsername())
+//                .passwordHash(passwordEncoder.encode(request.getPassword()))
+//                .email(request.getEmail())
+//                .fullName(request.getFullName())
+//                .build();
+//
+//        userRepo.save(user);
+//        return ResponseEntity.ok("Registered successfully");
+//    }
+
+//    @PostMapping("/login")
+//    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+//        User user = userRepo.findByUsername(request.getUsername())
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+//            return ResponseEntity.status(401).body("Invalid credentials");
+//        }
+//
+//        String token = jwtUtils.generateToken(user.getUsername());
+//        return ResponseEntity.ok(new AuthResponse(token));
+//    }
 
 
     @PostMapping("/reset-request")
