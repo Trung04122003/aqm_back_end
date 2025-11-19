@@ -11,6 +11,8 @@ import java.time.LocalDate;
 @Data
 public class SensorDto {
 
+    private Long id;  // ✅ THÊM ID FIELD
+
     @NotBlank
     private String serialNumber;
 
@@ -21,6 +23,8 @@ public class SensorDto {
 
     @NotNull
     private Long locationId;
+
+    private LocalDate installationDate;  // ✅ THÊM INSTALLATION DATE
 
     private SensorStatus status = SensorStatus.ACTIVE;
 
