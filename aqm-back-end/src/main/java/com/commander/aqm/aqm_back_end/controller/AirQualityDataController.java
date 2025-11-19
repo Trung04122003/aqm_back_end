@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.awt.print.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,7 +22,8 @@ public class AirQualityDataController {
     @GetMapping
     public List<AirQualityDataDto> getData(  // ✅ TRẢ VỀ DTO THAY VÌ ENTITY
                                              @RequestParam Long location,
-                                             @RequestParam(defaultValue = "24h") String range
+                                             @RequestParam(defaultValue = "24h") String range,
+                                             Pageable pageable  // ✅ THÊM PAGINATION
     ) {
         LocalDateTime start = LocalDateTime.now().minusHours(parseHours(range));
         return dataRepo.findAll().stream()

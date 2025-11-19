@@ -49,9 +49,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/locations/**").permitAll() // dev only!
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
-                );
-//                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
-//                        UsernamePasswordAuthenticationFilter.class);
+                )
+                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

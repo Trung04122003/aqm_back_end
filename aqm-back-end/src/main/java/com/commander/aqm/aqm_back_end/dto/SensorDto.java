@@ -40,12 +40,12 @@ public class SensorDto {
         return dto;
     }
 
-    private void setInstallationDate(LocalDate installationDate) {
-
-    }
-
-    private void setId(Long id) {
-    }
+//    private void setInstallationDate(LocalDate installationDate) {
+//
+//    }
+//
+//    private void setId(Long id) {
+//    }
 
     public Sensor toEntity() {
         Sensor s = new Sensor();
