@@ -4,6 +4,7 @@ package com.commander.aqm.aqm_back_end.controller;
 import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.dto.LoginRequest;
 import com.commander.aqm.aqm_back_end.dto.RegisterRequest;
+import com.commander.aqm.aqm_back_end.dto.UserDto;
 import com.commander.aqm.aqm_back_end.model.User;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
 import com.commander.aqm.aqm_back_end.service.PasswordResetService;
@@ -16,6 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -52,7 +56,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-        User user = userRepo.findByUsername(request.getUsername())
+        User user = userRepo.findByUsername(request.getUsernameOrEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -60,7 +64,16 @@ public class AuthController {
         }
 
         String token = jwtUtils.generateToken(user.getUsername());
-        return ResponseEntity.ok(new AuthResponse(token));
+        // ✅ TRẢ VỀ ĐÚNG FORMAT
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("user", UserDto.from(user)); // convert to DTO
+
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("status", 200);
+        wrapper.put("data", response);
+
+        return ResponseEntity.ok(wrapper);
     }
 
 //    @PostMapping("/register")

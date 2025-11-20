@@ -6,6 +6,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+//public interface AirQualityDataRepository extends JpaRepository<AirQualityData, Long> {
+//    List<AirQualityData> findByLocationIdAndTimestampUtcBetween(Long locationId, LocalDateTime from, LocalDateTime to);
+//}
+
 public interface AirQualityDataRepository extends JpaRepository<AirQualityData, Long> {
+    List<AirQualityData> findByLocationIdAndTimestampUtcAfter(Long locationId, LocalDateTime after);
+
     List<AirQualityData> findByLocationIdAndTimestampUtcBetween(Long locationId, LocalDateTime from, LocalDateTime to);
 }
