@@ -8,4 +8,6 @@ public interface SensorService {
     List<Sensor> getAll();
     Sensor getById(Long id);
     Sensor save(Sensor sensor);
+
+    void delete(Long id);
 }
