@@ -32,11 +32,3 @@ public class AlertThreshold {
     private Float aqiThreshold;
 }
 
-// ✅ THÊM ENUMS
-enum Pollutant {
-    PM25, PM10, NO2, CO, O3, SO2, AQI
-}
-
-enum ComparisonOperator {
-    GREATER_THAN, LESS_THAN, GREATER_EQUAL, LESS_EQUAL
-}
