@@ -1,3 +1,4 @@
+// aqm-back-end/src/main/java/.../config/SecurityConfig.java (FIXED)
 package com.commander.aqm.aqm_back_end.config;
 
 import com.commander.aqm.aqm_back_end.security.JwtAuthFilter;
@@ -7,7 +8,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import java.util.List;
 
 @Configuration
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -27,12 +32,28 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Dev: list the front-end origins you use
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // ✅ Allow frontend origins
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:8080"
+        ));
+
+        // ✅ Allow all HTTP methods
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        // ✅ Allow all headers
         config.setAllowedHeaders(List.of("*"));
+
+        // ✅ Allow credentials (for cookies/auth headers)
         config.setAllowCredentials(true);
+
+        // ✅ Cache preflight requests for 1 hour
         config.setMaxAge(3600L);
+
+        // ✅ Expose Authorization header to frontend
+        config.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -42,16 +63,40 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // ✅ Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+
+                // ✅ DISABLE CSRF (important for REST APIs)
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // ✅ Stateless session (JWT-based, no server session)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                // ✅ Configure endpoint permissions
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/locations/**").authenticated() // dev only!
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Public endpoints - NO AUTH REQUIRED
+                        .requestMatchers(
+                                "/api/auth/**",           // Login, Register
+                                "/api/health",            // Health check
+                                "/swagger-ui/**",         // Swagger UI
+                                "/v3/api-docs/**",        // API docs
+                                "/swagger-ui.html"        // Swagger HTML
+                        ).permitAll()
+
+                        // Admin endpoints - REQUIRE ADMIN ROLE
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // All other endpoints - REQUIRE AUTHENTICATION
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
-                        UsernamePasswordAuthenticationFilter.class);
+
+                // ✅ Add JWT filter BEFORE UsernamePasswordAuthenticationFilter
+                .addFilterBefore(
+                        new JwtAuthFilter(jwtUtils, userDetailsService),
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
@@ -62,54 +107,63 @@ public class SecurityConfig {
     }
 }
 
+//// aqm-back-end/src/main/java/.../config/SecurityConfig.java (UPDATED)
 //package com.commander.aqm.aqm_back_end.config;
 //
 //import com.commander.aqm.aqm_back_end.security.JwtAuthFilter;
 //import com.commander.aqm.aqm_back_end.security.JwtUtils;
-//import jakarta.servlet.FilterChain;
-//import jakarta.servlet.ServletException;
-//import jakarta.servlet.http.HttpServletRequest;
-//import jakarta.servlet.http.HttpServletResponse;
 //import lombok.RequiredArgsConstructor;
 //import org.springframework.context.annotation.Bean;
 //import org.springframework.context.annotation.Configuration;
-//import org.springframework.http.HttpMethod;
 //import org.springframework.security.authentication.AuthenticationManager;
-//import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 //import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+//import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 //import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-//import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
-//import org.springframework.security.core.context.SecurityContextHolder;
-//import org.springframework.security.core.userdetails.UserDetailsService;
 //import org.springframework.security.web.SecurityFilterChain;
-//import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 //import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+//import org.springframework.security.core.userdetails.UserDetailsService;
+//import org.springframework.web.cors.CorsConfiguration;
+//import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+//import org.springframework.web.cors.CorsConfigurationSource;
 //
-//import java.io.IOException;
+//import java.util.List;
 //
 //@Configuration
+//@EnableMethodSecurity(prePostEnabled = true) // ✅ ENABLE @PreAuthorize
 //@RequiredArgsConstructor
 //public class SecurityConfig {
 //
 //    private final JwtUtils jwtUtils;
-//    private final UserDetailsService userDetailsService; // Now this will be found
+//    private final UserDetailsService userDetailsService;
+//
+//    @Bean
+//    public CorsConfigurationSource corsConfigurationSource() {
+//        CorsConfiguration config = new CorsConfiguration();
+//        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+//        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+//        config.setAllowedHeaders(List.of("*"));
+//        config.setAllowCredentials(true);
+//        config.setMaxAge(3600L);
+//
+//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+//        source.registerCorsConfiguration("/**", config);
+//        return source;
+//    }
 //
 //    @Bean
 //    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        http.csrf(CsrfConfigurer::disable)
-////                .authorizeHttpRequests(auth -> auth
-////                        .requestMatchers(
-////                                "/api/auth/**",
-////                                "/swagger-ui.html",
-////                                "/v3/api-docs/**",
-////                                "/api/reports/**"        // ✅ TEMPORARILY ALLOW
-////                        ).permitAll()
-////                        .anyRequest().authenticated()
-////                );
+//        http
+//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+//                .csrf(csrf -> csrf.disable())
 //                .authorizeHttpRequests(auth -> auth
 //                        .requestMatchers("/api/auth/**").permitAll()
-//                        .anyRequest().authenticated())
-//                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService), UsernamePasswordAuthenticationFilter.class);
+//                        .requestMatchers("/api/health").permitAll()
+//                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+//                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // ✅ Protect admin endpoints
+//                        .anyRequest().authenticated()
+//                )
+//                .addFilterBefore(new JwtAuthFilter(jwtUtils, userDetailsService),
+//                        UsernamePasswordAuthenticationFilter.class);
 //
 //        return http.build();
 //    }

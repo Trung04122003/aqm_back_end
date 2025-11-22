@@ -29,4 +29,9 @@ public class SensorServiceImpl implements SensorService {
     public Sensor save(Sensor sensor) {
         return sensorRepo.save(sensor);
     }
+
+    @Override
+    public void delete(Long id) {
+        sensorRepo.deleteById(id);
+    }
 }
