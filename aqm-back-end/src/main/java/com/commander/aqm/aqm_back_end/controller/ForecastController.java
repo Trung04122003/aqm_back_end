@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/forecast")
+@RequestMapping("/api/forecast") // ✅ Good
 @RequiredArgsConstructor
 public class ForecastController {
 

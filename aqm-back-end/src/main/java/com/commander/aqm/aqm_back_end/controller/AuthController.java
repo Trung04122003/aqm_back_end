@@ -12,6 +12,7 @@ import com.commander.aqm.aqm_back_end.security.JwtUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,7 @@ public class AuthController {
     @Operation(summary = "Register a new user")
     @ApiResponse(responseCode = "200", description = "User registered successfully")
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 
         if (userRepo.existsByUsername(request.getUsername())) {
             return ResponseEntity.badRequest().body("Username already taken");
@@ -54,7 +55,7 @@ public class AuthController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
 
         User user = userRepo.findByUsername(request.getUsernameOrEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -64,17 +65,14 @@ public class AuthController {
         }
 
         String token = jwtUtils.generateToken(user.getUsername());
-        // ✅ TRẢ VỀ ĐÚNG FORMAT
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        response.put("user", UserDto.from(user)); // convert to DTO
 
-        Map<String, Object> wrapper = new HashMap<>();
-        wrapper.put("status", 200);
-        wrapper.put("data", response);
-
-        return ResponseEntity.ok(wrapper);
+        // ✅ CONSISTENT RESPONSE FORMAT
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "user", UserDto.from(user)
+        ));
     }
+
 
 //    @PostMapping("/register")
 //    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
