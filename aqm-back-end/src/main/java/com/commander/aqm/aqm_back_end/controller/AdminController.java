@@ -1,6 +1,7 @@
 // aqm-back-end/src/main/java/.../controller/AdminController.java
 package com.commander.aqm.aqm_back_end.controller;
 
+import com.commander.aqm.aqm_back_end.dto.GenerateReportRequest;
 import com.commander.aqm.aqm_back_end.dto.UserDto;
 import com.commander.aqm.aqm_back_end.dto.SensorDto;
 import com.commander.aqm.aqm_back_end.model.*;
@@ -9,6 +10,7 @@ import com.commander.aqm.aqm_back_end.service.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.Data;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -227,6 +229,23 @@ public class AdminController {
         stats.put("totalAlerts", alertRepo.count());
         stats.put("activeLocations", locationRepo.count());
         return ResponseEntity.ok(stats);
+    }
+
+    // ✅ ADD: Generate report endpoint for admin
+    @PostMapping("/reports/generate")
+    public ResponseEntity<?> generateReport(@RequestBody GenerateReportRequest request) {
+        // Implementation
+        return ResponseEntity.ok().build();
+    }
+
+    // ✅ ADD: Download report as PDF
+    @GetMapping("/reports/{id}/download")
+    public ResponseEntity<byte[]> downloadReport(@PathVariable Long id) {
+        // Implementation - return PDF bytes
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=report_" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new byte[0]); // Replace with real PDF generation
     }
 }
 

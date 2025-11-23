@@ -9,4 +9,5 @@ public interface AlertService {
     void evaluateAndTriggerAlerts(User user, Float pm25, Float pm10, Float aqi, Long locationId);
     List<Alert> getUnreadAlerts(User user);
     List<Alert> getAllAlerts(User user);
+    Alert markAsRead(Long alertId, User user); // ✅ ADD THIS
 }
