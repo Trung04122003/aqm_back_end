@@ -1,39 +1,41 @@
-# aqm-back-end/src/main/resources/application.yml (FIXED)
+# src/main/resources/application.yml (FIXED)
 spring:
+  application:
+    name: aqm-back-end
+
   profiles:
     active: dev
 
   datasource:
-    url: jdbc:mysql://localhost:3307/air_quality_monitoring
+    url: jdbc:mysql://localhost:3307/air_quality_monitoring?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: "@Trung123"
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  # ✅ CRITICAL: This will auto-create/update tables
     show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-
-  # ✅ REMOVE mvc.pathmatch - not needed for Spring Boot 3.x
-  # mvc:
-  #   pathmatch:
-  #     matching-strategy: ant_path_matcher
-
-  # ✅ Security config
-  security:
-    filter:
-      order: 1
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
 
 # JWT Configuration
 jwt:
   secret: "a4b7c99e33f88b1466c2e9a9e3f04d3f!secure-key-2025"
-  expiration: 86400000  # 1 day in milliseconds
+  expiration: 86400000 # 1 day
 
-# Springdoc OpenAPI (Swagger)
+# Springdoc OpenAPI
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -46,7 +48,8 @@ logging:
   level:
     org.springframework.security: DEBUG
     com.commander.aqm: DEBUG
-    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 # Server
 server:
