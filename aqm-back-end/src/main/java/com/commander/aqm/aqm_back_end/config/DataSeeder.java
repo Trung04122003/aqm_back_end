@@ -46,44 +46,53 @@ public class DataSeeder {
         return args -> {
             System.out.println("🇻🇳 ========== SEEDING VIETNAM CITIES DATA ==========");
 
-            // 👥 STEP 1: Create Users
-            List<User> users = seedUsers();
-            System.out.println("✅ Created " + users.size() + " users");
+            // 👥 STEP 1: Seed Users (không cần list, chỉ call method)
+            seedUsers();
+            System.out.println("✅ Seeded users");
 
-            // 🌍 STEP 2: Create 6 Major Cities
-            List<Location> cities = seedVietnamCities();
-            System.out.println("✅ Created " + cities.size() + " cities");
+            // 🌍 STEP 2: Seed Cities
+            seedVietnamCities();
+            System.out.println("✅ Seeded cities");
 
-            // 🛰️ STEP 3: Create Sensors for each city
-            List<Sensor> sensors = seedSensors(cities);
+            // Lấy admin và city đầu tiên từ repo (an toàn, tránh rỗng)
+            User admin = userRepo.findByUsername("admin").orElse(null);
+            Location firstCity = locationRepo.findAll().stream().findFirst().orElse(null);
+
+            if (admin == null || firstCity == null) {
+                System.out.println("⚠️ Skipping further seeding: Admin or cities not found");
+                return; // Thoát sớm nếu không có data cơ bản
+            }
+
+            // 🛰️ STEP 3: Seed Sensors
+            List<Sensor> sensors = seedSensors(locationRepo.findAll()); // Truyền full list cities
             System.out.println("✅ Created " + sensors.size() + " sensors");
 
-            // 🌫️ STEP 4: Generate Air Quality Data (last 7 days)
-            seedAirQualityData(cities, sensors);
-            System.out.println("✅ Generated air quality data for 7 days");
+            // 🌫️ STEP 4: Seed Air Quality Data
+            seedAirQualityData(locationRepo.findAll(), sensors);
+            System.out.println("✅ Generated air quality data");
 
-            // 🌦️ STEP 5: Generate Weather Data
-            seedWeatherData(cities);
+            // 🌦️ STEP 5: Seed Weather Data
+            seedWeatherData(locationRepo.findAll());
             System.out.println("✅ Generated weather data");
 
-            // 🔮 STEP 6: Generate Forecasts (next 24 hours)
-            seedForecasts(cities);
-            System.out.println("✅ Generated 24h forecasts");
+            // 🔮 STEP 6: Seed Forecasts
+            seedForecasts(locationRepo.findAll());
+            System.out.println("✅ Generated forecasts");
 
-            // 🛡️ STEP 7: Create Alert Thresholds
-            seedAlertThresholds(users);
+            // 🛡️ STEP 7: Seed Alert Thresholds
+            seedAlertThresholds(userRepo.findAll()); // Truyền full users từ repo
             System.out.println("✅ Created alert thresholds");
 
-            // 🚨 STEP 8: Generate Sample Alerts
-            seedAlerts(users.get(0), cities.get(0));
+            // 🚨 STEP 8: Seed Alerts (sử dụng admin và firstCity)
+            seedAlerts(admin, firstCity);
             System.out.println("✅ Generated sample alerts");
 
-            // 📊 STEP 9: Generate Sample Reports
-            seedReports(users.get(0), cities.get(0));
+            // 📊 STEP 9: Seed Reports
+            seedReports(admin, firstCity);
             System.out.println("✅ Generated sample reports");
 
-            // 📩 STEP 10: Create Support Requests
-            seedSupportRequests(users.get(0));
+            // 📩 STEP 10: Seed Support Requests
+            seedSupportRequests(admin);
             System.out.println("✅ Created support requests");
 
             System.out.println("🎉 ========== VIETNAM DATA SEEDING COMPLETE ==========");
@@ -506,7 +515,7 @@ public class DataSeeder {
     // ==================== DATABASE RESET ====================
 
     @Component
-    @Profile("reset")
+//    @Profile("reset")
     @RequiredArgsConstructor
     public static class DatabaseResetRunner implements CommandLineRunner {
 
@@ -518,13 +527,13 @@ public class DataSeeder {
             System.out.println("⚠️ Resetting database tables...");
 
             entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE AirQualityData").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE air_quality_data").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE Alert").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE AlertThreshold").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE alert_threshold").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE Forecast").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE WeatherData").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE weather_data").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE Report").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE SupportRequest").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE support_request").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE Sensor").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE Location").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE `User`").executeUpdate();
