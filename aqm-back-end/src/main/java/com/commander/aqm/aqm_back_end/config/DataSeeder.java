@@ -506,7 +506,7 @@ public class DataSeeder {
     // ==================== DATABASE RESET ====================
 
     @Component
-    @Profile("reset")
+//    @Profile("reset")
     @RequiredArgsConstructor
     public static class DatabaseResetRunner implements CommandLineRunner {
 
