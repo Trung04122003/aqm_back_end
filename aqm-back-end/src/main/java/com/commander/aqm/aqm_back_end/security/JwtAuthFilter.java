@@ -56,6 +56,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (jwtUtils.isTokenValid(token)) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
+                    // ✅ DEBUG: Print authorities
+                    System.out.println("🔐 User: " + username);
+                    System.out.println("🔐 Authorities: " + userDetails.getAuthorities());
+
                     // Create authentication token
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
@@ -72,7 +76,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         } catch (Exception e) {
             // ✅ Log error but don't block request - let SecurityConfig handle it
-            System.err.println("JWT Filter Error: " + e.getMessage());
+            System.err.println("❌ JWT Filter Error: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);
