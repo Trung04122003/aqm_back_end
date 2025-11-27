@@ -13,6 +13,8 @@ import lombok.Data;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +38,7 @@ public class AdminController {
     private final SensorService sensorService;
     private final PasswordEncoder passwordEncoder;
     private final SystemLogService systemLogService;
+    private final ReportRepository reportRepo;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -249,9 +252,25 @@ public class AdminController {
                 .body(new byte[0]); // Replace with real PDF generation
     }
 
+    // ==================== SYSTEM LOG ====================
     @GetMapping("/logs")
     public ResponseEntity<List<SystemLog>> getSystemLogs() {
         return ResponseEntity.ok(systemLogService.getRecentLogs(200));
+    }
+
+    // ==================== REPORTS MANAGEMENT ====================
+    // ✅ GET all reports endpoint
+    @GetMapping("/reports")
+    public ResponseEntity<List<Report>> getAllReports() {
+        // ✅ DEBUG: Log who's accessing
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("🔐 /admin/reports accessed by: " + auth.getName());
+        System.out.println("🔐 Authorities: " + auth.getAuthorities());
+
+        List<Report> reports = reportRepo.findAll();
+        System.out.println("📊 Found " + reports.size() + " reports");
+
+        return ResponseEntity.ok(reports);
     }
 }
 
