@@ -35,6 +35,7 @@ public class AdminController {
     private final LocationRepository locationRepo;
     private final SensorService sensorService;
     private final PasswordEncoder passwordEncoder;
+    private final SystemLogService systemLogService;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -246,6 +247,11 @@ public class AdminController {
                 .header("Content-Disposition", "attachment; filename=report_" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(new byte[0]); // Replace with real PDF generation
+    }
+
+    @GetMapping("/logs")
+    public ResponseEntity<List<SystemLog>> getSystemLogs() {
+        return ResponseEntity.ok(systemLogService.getRecentLogs(200));
     }
 }
 
