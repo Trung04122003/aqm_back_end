@@ -5,6 +5,8 @@ import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.dto.LoginRequest;
 import com.commander.aqm.aqm_back_end.dto.RegisterRequest;
 import com.commander.aqm.aqm_back_end.dto.UserDto;
+import com.commander.aqm.aqm_back_end.model.Role;
+import com.commander.aqm.aqm_back_end.model.Status;
 import com.commander.aqm.aqm_back_end.model.User;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
 import com.commander.aqm.aqm_back_end.service.PasswordResetService;
@@ -16,6 +18,9 @@ import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,8 +38,8 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final PasswordResetService resetService;
 
+    // ✅ ENDPOINT 1: User Registration (PUBLIC)
     @Operation(summary = "Register a new user")
-    @ApiResponse(responseCode = "200", description = "User registered successfully")
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 
@@ -47,10 +52,69 @@ public class AuthController {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .fullName(request.getFullName())
+                .role(Role.USER) // ✅ Explicitly set USER role
+                .status(Status.ACTIVE)
                 .build();
 
         userRepo.save(user);
-        return ResponseEntity.ok("Registered successfully");
+        return ResponseEntity.ok("User registered successfully");
+    }
+
+    // ✅ ENDPOINT 2: Admin Registration (PUBLIC - Self Registration)
+    @Operation(summary = "Register a new admin")
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@Valid @RequestBody RegisterRequest request) {
+
+        if (userRepo.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body("Username already taken");
+        }
+
+        // ⚠️ OPTION A: Public admin registration (KHÔNG AN TOÀN - Chỉ dùng dev)
+        User admin = User.builder()
+                .username(request.getUsername())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .fullName(request.getFullName())
+                .role(Role.ADMIN) // ✅ Set ADMIN role
+                .status(Status.ACTIVE)
+                .build();
+
+        userRepo.save(admin);
+        return ResponseEntity.ok("Admin registered successfully");
+    }
+
+    // ✅ ENDPOINT 3: Admin Registration (PROTECTED - Production Ready)
+    @Operation(summary = "Create new admin (Admin only)")
+    @PostMapping("/create-admin")
+    @PreAuthorize("hasRole('ADMIN')") // ✅ Chỉ Admin hiện tại mới tạo được
+    public ResponseEntity<?> createAdmin(
+            @Valid @RequestBody RegisterRequest request,
+            @AuthenticationPrincipal UserDetails currentUser
+    ) {
+
+        if (userRepo.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body("Username already taken");
+        }
+
+        User admin = User.builder()
+                .username(request.getUsername())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .fullName(request.getFullName())
+                .role(Role.ADMIN)
+                .status(Status.ACTIVE)
+                .build();
+
+        userRepo.save(admin);
+
+        // Log audit trail
+        System.out.println("🔐 Admin created by: " + currentUser.getUsername());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Admin created successfully",
+                "username", admin.getUsername(),
+                "role", admin.getRole()
+        ));
     }
 
 
