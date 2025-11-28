@@ -2,58 +2,54 @@
 package com.commander.aqm.aqm_back_end.dto;
 
 import com.commander.aqm.aqm_back_end.model.Report;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReportDto {
     private Long id;
-    private Long locationId;
-    private String locationName;
-    private LocalDateTime fromDate;
-    private LocalDateTime toDate;
-
-    // ✅ Statistical data
+    private String username;           // ✅ User's username
+    private String locationName;       // ✅ Location name
+    private String fromDate;           // ✅ Period start
+    private String toDate;             // ✅ Period end
+    private Double avgAqi;             // ✅ Average AQI
     private Double avgPm25;
     private Double avgPm10;
-    private Double avgAqi;
     private Integer maxAqi;
     private Integer minAqi;
-
-    // ✅ Distribution breakdown
     private Integer goodDays;
     private Integer moderateDays;
     private Integer unhealthyDays;
     private Integer totalDataPoints;
+    private LocalDateTime generatedAt; // ✅ Creation timestamp
 
-    private LocalDateTime generatedAt;
-
-    // ✅ Static factory method
+    // ✅ Static factory method to convert from Report entity
     public static ReportDto from(Report report) {
         if (report == null) return null;
 
-        ReportDto dto = new ReportDto();
-        dto.setId(report.getId());
-        dto.setLocationId(report.getLocation().getId());
-        dto.setLocationName(report.getLocation().getName());
-        dto.setFromDate(report.getStartTimestamp());
-        dto.setToDate(report.getEndTimestamp());
-
-        // Statistics
-        dto.setAvgPm25(report.getAvgPm25());
-        dto.setAvgPm10(report.getAvgPm10());
-        dto.setAvgAqi(report.getAvgAqi());
-        dto.setMaxAqi(report.getMaxAqi());
-        dto.setMinAqi(report.getMinAqi());
-
-        // Distribution
-        dto.setGoodDays(report.getGoodDays());
-        dto.setModerateDays(report.getModerateDays());
-        dto.setUnhealthyDays(report.getUnhealthyDays());
-        dto.setTotalDataPoints(report.getTotalDataPoints());
-
-        dto.setGeneratedAt(report.getCreatedAt());
-
-        return dto;
+        return ReportDto.builder()
+                .id(report.getId())
+                .username(report.getUser() != null ? report.getUser().getUsername() : "Unknown")
+                .locationName(report.getLocation() != null ? report.getLocation().getName() : "Unknown")
+                .fromDate(report.getStartTimestamp() != null ? report.getStartTimestamp().toString() : "")
+                .toDate(report.getEndTimestamp() != null ? report.getEndTimestamp().toString() : "")
+                .avgAqi(report.getAvgAqi())
+                .avgPm25(report.getAvgPm25())
+                .avgPm10(report.getAvgPm10())
+                .maxAqi(report.getMaxAqi())
+                .minAqi(report.getMinAqi())
+                .goodDays(report.getGoodDays())
+                .moderateDays(report.getModerateDays())
+                .unhealthyDays(report.getUnhealthyDays())
+                .totalDataPoints(report.getTotalDataPoints())
+                .generatedAt(report.getCreatedAt())
+                .build();
     }
 }

@@ -2,6 +2,7 @@
 package com.commander.aqm.aqm_back_end.controller;
 
 import com.commander.aqm.aqm_back_end.dto.GenerateReportRequest;
+import com.commander.aqm.aqm_back_end.dto.ReportDto;
 import com.commander.aqm.aqm_back_end.dto.UserDto;
 import com.commander.aqm.aqm_back_end.dto.SensorDto;
 import com.commander.aqm.aqm_back_end.model.*;
@@ -18,9 +19,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,6 +40,7 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final SystemLogService systemLogService;
     private final ReportRepository reportRepo;
+    private final AirQualityDataRepository airRepo; // ✅ ADD THIS LINE
 
     // ==================== USER MANAGEMENT ====================
 
@@ -234,12 +236,119 @@ public class AdminController {
         stats.put("activeLocations", locationRepo.count());
         return ResponseEntity.ok(stats);
     }
+    // ==================== REPORTS MANAGEMENT ====================
+    // ✅ GET all reports - return ReportDto list
+    @GetMapping("/reports")
+    public ResponseEntity<List<ReportDto>> getAllReports() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("🔐 /admin/reports accessed by: " + auth.getName());
+        System.out.println("🔐 Authorities: " + auth.getAuthorities());
 
-    // ✅ ADD: Generate report endpoint for admin
+        List<Report> reports = reportRepo.findAll();
+        System.out.println("📊 Found " + reports.size() + " reports");
+
+        // ✅ Convert to DTO
+        List<ReportDto> reportDtos = reports.stream()
+                .map(ReportDto::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(reportDtos);
+    }
+
+    // ✅ Generate report - return ReportDto
     @PostMapping("/reports/generate")
     public ResponseEntity<?> generateReport(@RequestBody GenerateReportRequest request) {
-        // Implementation
-        return ResponseEntity.ok().build();
+        try {
+            // Get current admin user
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User admin = userRepo.findByUsername(auth.getName())
+                    .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+            // Get location
+            Location location = locationRepo.findById(request.getLocationId())
+                    .orElseThrow(() -> new RuntimeException("Location not found"));
+
+            // Parse dates
+            LocalDateTime fromDate = LocalDate.parse(request.getFromDate()).atStartOfDay();
+            LocalDateTime toDate = LocalDate.parse(request.getToDate()).atTime(23, 59, 59);
+
+            // Get data
+            List<AirQualityData> data = airRepo.findByLocationIdAndTimestampUtcBetween(
+                    location.getId(), fromDate, toDate
+            );
+
+            if (data.isEmpty()) {
+                return ResponseEntity.badRequest().body("No data available for selected period");
+            }
+
+            // Calculate statistics
+            double avgPm25 = data.stream()
+                    .filter(d -> d.getPm25() != null)
+                    .mapToDouble(AirQualityData::getPm25)
+                    .average().orElse(0.0);
+
+            double avgPm10 = data.stream()
+                    .filter(d -> d.getPm10() != null)
+                    .mapToDouble(AirQualityData::getPm10)
+                    .average().orElse(0.0);
+
+            double avgAqi = data.stream()
+                    .filter(d -> d.getAqi() != null)
+                    .mapToDouble(AirQualityData::getAqi)
+                    .average().orElse(0.0);
+
+            OptionalInt maxAqi = data.stream()
+                    .filter(d -> d.getAqi() != null)
+                    .mapToInt(AirQualityData::getAqi)
+                    .max();
+
+            OptionalInt minAqi = data.stream()
+                    .filter(d -> d.getAqi() != null)
+                    .mapToInt(AirQualityData::getAqi)
+                    .min();
+
+            int goodDays = (int) data.stream()
+                    .filter(d -> d.getAqi() != null && d.getAqi() <= 50)
+                    .count();
+
+            int moderateDays = (int) data.stream()
+                    .filter(d -> d.getAqi() != null && d.getAqi() > 50 && d.getAqi() <= 100)
+                    .count();
+
+            int unhealthyDays = (int) data.stream()
+                    .filter(d -> d.getAqi() != null && d.getAqi() > 100)
+                    .count();
+
+            // Create report
+            Report report = Report.builder()
+                    .user(admin)
+                    .location(location)
+                    .reportType(Report.ReportType.CUSTOM)
+                    .startTimestamp(fromDate)
+                    .endTimestamp(toDate)
+                    .avgPm25(avgPm25)
+                    .avgPm10(avgPm10)
+                    .avgAqi(avgAqi)
+                    .maxAqi(maxAqi.isPresent() ? maxAqi.getAsInt() : null)
+                    .minAqi(minAqi.isPresent() ? minAqi.getAsInt() : null)
+                    .goodDays(goodDays)
+                    .moderateDays(moderateDays)
+                    .unhealthyDays(unhealthyDays)
+                    .totalDataPoints(data.size())
+                    .build();
+
+            reportRepo.save(report);
+
+            System.out.println("✅ Report generated: ID=" + report.getId());
+
+            // ✅ Return DTO instead of entity
+            return ResponseEntity.ok(ReportDto.from(report));
+
+        } catch (Exception e) {
+            System.err.println("❌ Generate report error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Failed to generate report: " + e.getMessage());
+        }
     }
 
     // ✅ ADD: Download report as PDF
@@ -256,21 +365,6 @@ public class AdminController {
     @GetMapping("/logs")
     public ResponseEntity<List<SystemLog>> getSystemLogs() {
         return ResponseEntity.ok(systemLogService.getRecentLogs(200));
-    }
-
-    // ==================== REPORTS MANAGEMENT ====================
-    // ✅ GET all reports endpoint
-    @GetMapping("/reports")
-    public ResponseEntity<List<Report>> getAllReports() {
-        // ✅ DEBUG: Log who's accessing
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        System.out.println("🔐 /admin/reports accessed by: " + auth.getName());
-        System.out.println("🔐 Authorities: " + auth.getAuthorities());
-
-        List<Report> reports = reportRepo.findAll();
-        System.out.println("📊 Found " + reports.size() + " reports");
-
-        return ResponseEntity.ok(reports);
     }
 }
 
@@ -303,5 +397,5 @@ class CreateSensorRequest {
     private String model;
     private Long locationId;
     private SensorStatus status;
-    private java.time.LocalDate installationDate;
+    private LocalDate installationDate;
 }
