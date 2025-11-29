@@ -41,6 +41,7 @@ public class AdminController {
     private final SystemLogService systemLogService;
     private final ReportRepository reportRepo;
     private final AirQualityDataRepository airRepo; // ✅ ADD THIS LINE
+    private final PdfReportService pdfReportService;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -352,13 +353,51 @@ public class AdminController {
     }
 
     // ✅ ADD: Download report as PDF
+    // ✅ FIXED: Download report as PDF with real data
     @GetMapping("/reports/{id}/download")
     public ResponseEntity<byte[]> downloadReport(@PathVariable Long id) {
-        // Implementation - return PDF bytes
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=report_" + id + ".pdf")
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(new byte[0]); // Replace with real PDF generation
+        try {
+            // Get report
+            Report report = reportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
+
+            // Generate PDF
+            byte[] pdfBytes = pdfReportService.generateReportPdf(report);
+
+            // Return PDF
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=report_" + id + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdfBytes);
+
+        } catch (Exception e) {
+            System.err.println("❌ Download error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ FIXED: Delete report with proper error handling
+    @DeleteMapping("/reports/{id}")
+    @PreAuthorize("hasRole('ADMIN')") // ✅ Ensure admin only
+    public ResponseEntity<?> deleteReport(@PathVariable Long id) {
+        try {
+            // Check if report exists
+            if (!reportRepo.existsById(id)) {
+                return ResponseEntity.status(404).body("Report not found");
+            }
+
+            // Delete the report
+            reportRepo.deleteById(id);
+
+            System.out.println("✅ Report deleted: ID=" + id);
+            return ResponseEntity.ok().body(Map.of("message", "Report deleted successfully", "id", id));
+
+        } catch (Exception e) {
+            System.err.println("❌ Delete error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Failed to delete report: " + e.getMessage());
+        }
     }
 
     // ==================== SYSTEM LOG ====================
