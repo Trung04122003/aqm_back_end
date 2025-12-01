@@ -13,22 +13,19 @@ public class AlertThreshold {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JoinColumn(name = "user_id")
     private Long id;
 
-    @Enumerated(EnumType.STRING)  // ✅ THÊM POLLUTANT FIELD
-    private Pollutant pollutant;
-
-    private Float thresholdValue;
-
-    @Enumerated(EnumType.STRING)  // ✅ THÊM COMPARISON FIELD
-    private ComparisonOperator comparison;
-
     @ManyToOne(optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // ✅ Keep simple numeric thresholds (as your UI expects)
+    @Column(name = "pm25_threshold")
     private Float pm25Threshold;
+
+    @Column(name = "pm10_threshold")
     private Float pm10Threshold;
+
+    @Column(name = "aqi_threshold")
     private Float aqiThreshold;
 }
-

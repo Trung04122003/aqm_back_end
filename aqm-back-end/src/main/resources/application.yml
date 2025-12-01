@@ -30,6 +30,32 @@ spring:
         order_inserts: true
         order_updates: true
 
+  # Email Configuration (Gmail SMTP)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_USERNAME}  # Set in environment variable or .env
+    password: ${EMAIL_PASSWORD}  # Use Gmail App Password, NOT your regular password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    default-encoding: UTF-8
+
+  # Enable async for email sending
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+
 # JWT Configuration
 jwt:
   secret: "a4b7c99e33f88b1466c2e9a9e3f04d3f!secure-key-2025"

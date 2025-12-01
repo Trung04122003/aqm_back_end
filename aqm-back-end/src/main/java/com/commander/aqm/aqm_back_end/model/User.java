@@ -52,4 +52,7 @@ public class User {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    @Column(name = "email_alerts_enabled")
+    private Boolean emailAlertsEnabled = false;
 }

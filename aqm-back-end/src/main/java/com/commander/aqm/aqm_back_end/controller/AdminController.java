@@ -226,6 +226,84 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    // ==================== ALERT THRESHOLD MANAGEMENT ====================
+
+    @PostMapping("/alert-thresholds")
+    public ResponseEntity<?> createAlertThreshold(@RequestBody CreateThresholdRequest request) {
+        try {
+            // Validate user exists
+            User user = userRepo.findById(request.getUserId())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Check if user already has threshold
+            Optional<AlertThreshold> existing = thresholdRepo.findByUser(user);
+            if (existing.isPresent()) {
+                return ResponseEntity.badRequest()
+                        .body("User already has a threshold. Use PUT to update.");
+            }
+
+            // Create new threshold
+            AlertThreshold threshold = AlertThreshold.builder()
+                    .user(user)
+                    .pm25Threshold(request.getPm25Threshold())
+                    .pm10Threshold(request.getPm10Threshold())
+                    .aqiThreshold(request.getAqiThreshold())
+                    .build();
+
+            thresholdRepo.save(threshold);
+            return ResponseEntity.ok(threshold);
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to create threshold: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/alert-thresholds")
+    public ResponseEntity<List<AlertThreshold>> getAllAlertThresholds() {
+        return ResponseEntity.ok(thresholdRepo.findAll());
+    }
+
+    @GetMapping("/alert-thresholds/{id}")
+    public ResponseEntity<?> getAlertThreshold(@PathVariable Long id) {
+        return thresholdRepo.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/alert-thresholds/{id}")
+    public ResponseEntity<?> updateAlertThreshold(
+            @PathVariable Long id,
+            @RequestBody UpdateThresholdRequest request
+    ) {
+        try {
+            AlertThreshold threshold = thresholdRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Threshold not found"));
+
+            if (request.getPm25Threshold() != null)
+                threshold.setPm25Threshold(request.getPm25Threshold());
+            if (request.getPm10Threshold() != null)
+                threshold.setPm10Threshold(request.getPm10Threshold());
+            if (request.getAqiThreshold() != null)
+                threshold.setAqiThreshold(request.getAqiThreshold());
+
+            thresholdRepo.save(threshold);
+            return ResponseEntity.ok(threshold);
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to update: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/alert-thresholds/{id}")
+    public ResponseEntity<?> deleteAlertThreshold(@PathVariable Long id) {
+        if (!thresholdRepo.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        thresholdRepo.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+
     // ==================== STATISTICS ====================
 
     @GetMapping("/stats")
@@ -437,4 +515,19 @@ class CreateSensorRequest {
     private Long locationId;
     private SensorStatus status;
     private LocalDate installationDate;
+}
+
+@Data
+class CreateThresholdRequest {
+    private Long userId;
+    private Float pm25Threshold;
+    private Float pm10Threshold;
+    private Float aqiThreshold;
+}
+
+@Data
+class UpdateThresholdRequest {
+    private Float pm25Threshold;
+    private Float pm10Threshold;
+    private Float aqiThreshold;
 }
