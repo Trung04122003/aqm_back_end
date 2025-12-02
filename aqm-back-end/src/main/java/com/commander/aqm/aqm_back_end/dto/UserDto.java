@@ -1,32 +1,34 @@
-// aqm-back-end/src/main/java/.../dto/UserDto.java (UPDATED)
+// src/main/java/com/commander/aqm/aqm_back_end/dto/UserDto.java
 package com.commander.aqm.aqm_back_end.dto;
 
-import com.commander.aqm.aqm_back_end.model.Role;
-import com.commander.aqm.aqm_back_end.model.Status;
 import com.commander.aqm.aqm_back_end.model.User;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserDto {
     private Long id;
     private String username;
     private String email;
     private String fullName;
-    private String role; // ✅ ADD role field
-    private String status; // ✅ ADD status field
-    private LocalDateTime createdAt; // ✅ ADD createdAt
+    private String role;
+    private Boolean emailAlertsEnabled; // ✅ ADD THIS
 
     public static UserDto from(User user) {
-        UserDto dto = new UserDto();
-        dto.setId(user.getId());
-        dto.setUsername(user.getUsername());
-        dto.setEmail(user.getEmail());
-        dto.setFullName(user.getFullName());
-        dto.setRole(user.getRole() != null ? user.getRole().name() : null); // ✅ Convert enum to string
-        dto.setStatus(user.getStatus() != null ? user.getStatus().name() : null);
-        dto.setCreatedAt(user.getCreatedAt());
-        return dto;
+        if (user == null) return null;
+
+        return UserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .emailAlertsEnabled(user.getEmailAlertsEnabled()) // ✅ ADD THIS
+                .build();
     }
 }

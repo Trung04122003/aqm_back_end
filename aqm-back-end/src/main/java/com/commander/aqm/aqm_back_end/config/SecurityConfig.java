@@ -90,6 +90,7 @@ public class SecurityConfig {
 
                         // ✅ NEW: Profile endpoints - authenticated users
                         .requestMatchers("/api/user/profile/**").authenticated()
+                        .requestMatchers("/api/user/test-email").authenticated()
 
                         // All other endpoints - REQUIRE AUTHENTICATION
                         .anyRequest().authenticated()
