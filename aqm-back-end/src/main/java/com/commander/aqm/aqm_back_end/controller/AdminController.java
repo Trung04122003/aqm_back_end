@@ -1,10 +1,7 @@
 // aqm-back-end/src/main/java/.../controller/AdminController.java
 package com.commander.aqm.aqm_back_end.controller;
 
-import com.commander.aqm.aqm_back_end.dto.GenerateReportRequest;
-import com.commander.aqm.aqm_back_end.dto.ReportDto;
-import com.commander.aqm.aqm_back_end.dto.UserDto;
-import com.commander.aqm.aqm_back_end.dto.SensorDto;
+import com.commander.aqm.aqm_back_end.dto.*;
 import com.commander.aqm.aqm_back_end.model.*;
 import com.commander.aqm.aqm_back_end.repository.*;
 import com.commander.aqm.aqm_back_end.service.*;
@@ -45,6 +42,7 @@ public class AdminController {
     private final CsvReportService csvReportService;
     private final ExcelReportService excelReportService;
     private final HtmlReportService htmlReportService;
+    private final SupportRequestRepository supportRepo;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -563,6 +561,95 @@ public class AdminController {
     public ResponseEntity<List<SystemLog>> getSystemLogs() {
         return ResponseEntity.ok(systemLogService.getRecentLogs(200));
     }
+
+    // ==================== SUPPORT TICKET MANAGEMENT ====================
+    /**
+     * Get all support tickets
+     */
+    @GetMapping("/support")
+    public ResponseEntity<List<SupportTicketDto>> getAllSupportTickets() {
+        List<SupportRequest> tickets = supportRepo.findAllByOrderBySubmittedAtDesc();
+        List<SupportTicketDto> dtos = tickets.stream()
+                .map(SupportTicketDto::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * Get support ticket statistics
+     */
+    @GetMapping("/support/count")
+    public ResponseEntity<Map<String, Long>> getSupportCount() {
+        long total = supportRepo.count();
+        long pending = supportRepo.countByStatus(RequestStatus.PENDING);
+        long inProgress = supportRepo.countByStatus(RequestStatus.IN_PROGRESS);
+        long resolved = supportRepo.countByStatus(RequestStatus.RESOLVED);
+
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("total", total);
+        stats.put("pending", pending);
+        stats.put("inProgress", inProgress);
+        stats.put("resolved", resolved);
+
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Update support ticket (status and/or admin reply)
+     */
+    @PutMapping("/support/{id}")
+    public ResponseEntity<?> updateSupportTicket(
+            @PathVariable Long id,
+            @RequestBody UpdateSupportRequest request
+    ) {
+        try {
+            SupportRequest ticket = supportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+            if (request.getStatus() != null) {
+                ticket.setStatus(request.getStatus());
+            }
+            if (request.getAdminReply() != null && !request.getAdminReply().isEmpty()) {
+                ticket.setAdminReply(request.getAdminReply());
+            }
+
+            supportRepo.save(ticket);
+            System.out.println("✅ Support ticket updated: ID=" + id);
+
+            return ResponseEntity.ok(SupportTicketDto.from(ticket));
+
+        } catch (Exception e) {
+            System.err.println("❌ Update ticket error: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body("Failed to update ticket: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete support ticket
+     */
+    @DeleteMapping("/support/{id}")
+    public ResponseEntity<?> deleteSupportTicket(@PathVariable Long id) {
+        try {
+            if (!supportRepo.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            supportRepo.deleteById(id);
+            System.out.println("✅ Support ticket deleted: ID=" + id);
+
+            return ResponseEntity.ok()
+                    .body(Map.of(
+                            "message", "Ticket deleted successfully",
+                            "id", id
+                    ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Delete ticket error: " + e.getMessage());
+            return ResponseEntity.status(500)
+                    .body("Failed to delete ticket: " + e.getMessage());
+        }
+    }
 }
 
 // ==================== REQUEST DTOs ====================
@@ -610,4 +697,10 @@ class UpdateThresholdRequest {
     private Float pm25Threshold;
     private Float pm10Threshold;
     private Float aqiThreshold;
+}
+
+@Data
+class UpdateSupportRequest {
+    private RequestStatus status;
+    private String adminReply;
 }

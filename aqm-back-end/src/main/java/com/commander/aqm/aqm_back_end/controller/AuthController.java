@@ -1,14 +1,16 @@
 package com.commander.aqm.aqm_back_end.controller;
 
-//import com.commander.aqm.aqm_back_end.dto.AuthRequest;
 import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.dto.LoginRequest;
 import com.commander.aqm.aqm_back_end.dto.RegisterRequest;
 import com.commander.aqm.aqm_back_end.dto.UserDto;
+import com.commander.aqm.aqm_back_end.model.PasswordResetToken;
 import com.commander.aqm.aqm_back_end.model.Role;
 import com.commander.aqm.aqm_back_end.model.Status;
 import com.commander.aqm.aqm_back_end.model.User;
+import com.commander.aqm.aqm_back_end.repository.PasswordResetTokenRepository;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
+import com.commander.aqm.aqm_back_end.service.EmailService;
 import com.commander.aqm.aqm_back_end.service.PasswordResetService;
 import com.commander.aqm.aqm_back_end.security.JwtUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,8 +27,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -37,6 +42,11 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final PasswordResetService resetService;
+    private final EmailService emailService;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     // ✅ ENDPOINT 1: User Registration (PUBLIC)
     @Operation(summary = "Register a new user")
@@ -52,7 +62,7 @@ public class AuthController {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .fullName(request.getFullName())
-                .role(Role.USER) // ✅ Explicitly set USER role
+                .role(Role.USER)
                 .status(Status.ACTIVE)
                 .build();
 
@@ -69,13 +79,12 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Username already taken");
         }
 
-        // ⚠️ OPTION A: Public admin registration (KHÔNG AN TOÀN - Chỉ dùng dev)
         User admin = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .fullName(request.getFullName())
-                .role(Role.ADMIN) // ✅ Set ADMIN role
+                .role(Role.ADMIN)
                 .status(Status.ACTIVE)
                 .build();
 
@@ -86,7 +95,7 @@ public class AuthController {
     // ✅ ENDPOINT 3: Admin Registration (PROTECTED - Production Ready)
     @Operation(summary = "Create new admin (Admin only)")
     @PostMapping("/create-admin")
-    @PreAuthorize("hasRole('ADMIN')") // ✅ Chỉ Admin hiện tại mới tạo được
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createAdmin(
             @Valid @RequestBody RegisterRequest request,
             @AuthenticationPrincipal UserDetails currentUser
@@ -107,7 +116,6 @@ public class AuthController {
 
         userRepo.save(admin);
 
-        // Log audit trail
         System.out.println("🔐 Admin created by: " + currentUser.getUsername());
 
         return ResponseEntity.ok(Map.of(
@@ -117,58 +125,181 @@ public class AuthController {
         ));
     }
 
-
+    /**
+     * ✅ ENDPOINT 4: Login (FIXED - Now accepts both username and email)
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        try {
+            // ✅ FIX: Use findByUsernameOrEmail instead of findByUsername
+            User user = userRepo.findByUsernameOrEmail(request.getUsernameOrEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        User user = userRepo.findByUsername(request.getUsernameOrEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            // ✅ Check if user account is active
+            if (user.getStatus() != Status.ACTIVE) {
+                return ResponseEntity.status(403)
+                        .body("Account is not active. Please contact support.");
+            }
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            return ResponseEntity.status(401).body("Invalid credentials");
+            // ✅ Verify password
+            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+                return ResponseEntity.status(401).body("Invalid credentials");
+            }
+
+            // ✅ Generate JWT token
+            String token = jwtUtils.generateToken(user.getUsername());
+
+            // ✅ Log successful login
+            System.out.println("✅ User logged in: " + user.getUsername() + " (Role: " + user.getRole() + ")");
+
+            // ✅ Return token and user info
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "user", UserDto.from(user)
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Login error: " + e.getMessage());
+            return ResponseEntity.status(401).body("Invalid username/email or password");
         }
-
-        String token = jwtUtils.generateToken(user.getUsername());
-
-        // ✅ CONSISTENT RESPONSE FORMAT
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "user", UserDto.from(user)
-        ));
     }
 
+    // ==================== NEW PASSWORD RESET ENDPOINTS ====================
 
-//    @PostMapping("/register")
-//    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
-//        if (userRepo.existsByUsername(request.getUsername())) {
-//            return ResponseEntity.badRequest().body("Username already taken");
-//        }
-//
-//        User user = User.builder()
-//                .username(request.getUsername())
-//                .passwordHash(passwordEncoder.encode(request.getPassword()))
-//                .email(request.getEmail())
-//                .fullName(request.getFullName())
-//                .build();
-//
-//        userRepo.save(user);
-//        return ResponseEntity.ok("Registered successfully");
-//    }
+    /**
+     * ✅ ENDPOINT 5: Forgot Password - Send Reset Email
+     * Frontend calls: POST /api/auth/forgot-password
+     */
+    @Operation(summary = "Request password reset email")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        try {
+            // Find user by email
+            Optional<User> userOpt = userRepo.findByEmail(request.getEmail());
 
-//    @PostMapping("/login")
-//    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-//        User user = userRepo.findByUsername(request.getUsername())
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-//            return ResponseEntity.status(401).body("Invalid credentials");
-//        }
-//
-//        String token = jwtUtils.generateToken(user.getUsername());
-//        return ResponseEntity.ok(new AuthResponse(token));
-//    }
+            if (userOpt.isEmpty()) {
+                // ✅ Security: Don't reveal if email exists
+                return ResponseEntity.ok(Map.of(
+                        "message", "If email exists, reset link will be sent"
+                ));
+            }
 
+            User user = userOpt.get();
 
+            // Generate reset token
+            String token = resetService.createToken(user);
+
+            // Build reset link
+            String resetLink = frontendUrl + "/reset-password?token=" + token;
+
+            // Send email
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetLink);
+
+            System.out.println("✅ Password reset email sent to: " + user.getEmail());
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Password reset email sent successfully"
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Forgot password error: " + e.getMessage());
+            e.printStackTrace();
+
+            // ✅ Security: Generic message even on error
+            return ResponseEntity.ok(Map.of(
+                    "message", "If email exists, reset link will be sent"
+            ));
+        }
+    }
+
+    /**
+     * ✅ ENDPOINT 6: Validate Reset Token
+     * Frontend calls: POST /api/auth/validate-reset-token
+     */
+    @Operation(summary = "Validate password reset token")
+    @PostMapping("/validate-reset-token")
+    public ResponseEntity<?> validateResetToken(@RequestBody Map<String, String> request) {
+        try {
+            String token = request.get("token");
+
+            if (token == null || token.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "valid", false,
+                        "message", "Token is required"
+                ));
+            }
+
+            // Find token in database
+            Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(token);
+
+            if (tokenOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "valid", false,
+                        "message", "Invalid token"
+                ));
+            }
+
+            PasswordResetToken resetToken = tokenOpt.get();
+
+            // Check if token is expired
+            if (resetToken.getExpiry().isBefore(LocalDateTime.now())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "valid", false,
+                        "message", "Token expired"
+                ));
+            }
+
+            // Token is valid
+            return ResponseEntity.ok(Map.of(
+                    "valid", true,
+                    "email", resetToken.getUser().getEmail()
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Token validation error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "Invalid token"
+            ));
+        }
+    }
+
+    /**
+     * ✅ ENDPOINT 7: Reset Password
+     * Frontend calls: POST /api/auth/reset-password
+     */
+    @Operation(summary = "Reset password with token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            boolean success = resetService.validateAndResetPassword(
+                    request.getToken(),
+                    request.getNewPassword()
+            );
+
+            if (success) {
+                System.out.println("✅ Password reset successful");
+                return ResponseEntity.ok(Map.of(
+                        "message", "Password reset successful"
+                ));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Invalid or expired token"
+                ));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Password reset error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Password reset failed: " + e.getMessage()
+            ));
+        }
+    }
+
+    // ==================== OLD ENDPOINTS (Keep for backward compatibility) ====================
+
+    @Deprecated
     @PostMapping("/reset-request")
     public String resetRequest(@RequestBody ResetRequest req) {
         return userRepo.findByEmail(req.getEmail())
@@ -179,18 +310,34 @@ public class AuthController {
                 .orElse("No user found with that email.");
     }
 
+    @Deprecated
     @PostMapping("/reset-confirm")
     public String confirmReset(@RequestBody ResetConfirm req) {
         boolean success = resetService.validateAndResetPassword(req.getToken(), req.getNewPassword());
         return success ? "Password reset successful." : "Invalid or expired token.";
     }
 
+    // ==================== REQUEST DTOs ====================
+
     @Data
+    public static class ForgotPasswordRequest {
+        private String email;
+    }
+
+    @Data
+    public static class ResetPasswordRequest {
+        private String token;
+        private String newPassword;
+    }
+
+    @Data
+    @Deprecated
     public static class ResetRequest {
         private String email;
     }
 
     @Data
+    @Deprecated
     public static class ResetConfirm {
         private String token;
         private String newPassword;

@@ -19,6 +19,9 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    /**
+     * ✅ EXISTING: Send alert email to user
+     */
     @Async
     public void sendAlertEmail(User user, Alert alert) {
         // Check if user has email alerts enabled
@@ -32,17 +35,41 @@ public class EmailService {
             message.setFrom("noreply@aqm-system.com");
             message.setTo(user.getEmail());
             message.setSubject("🚨 AQM Winter Alert: " + alert.getPollutant() + " Exceeded");
-            message.setText(buildEmailBody(user, alert));
+            message.setText(buildAlertEmailBody(user, alert));
 
             mailSender.send(message);
-            log.info("✅ Email sent to: {} for alert ID: {}", user.getEmail(), alert.getId());
+            log.info("✅ Alert email sent to: {} for alert ID: {}", user.getEmail(), alert.getId());
 
         } catch (Exception e) {
-            log.error("❌ Failed to send email to {}: {}", user.getEmail(), e.getMessage());
+            log.error("❌ Failed to send alert email to {}: {}", user.getEmail(), e.getMessage());
         }
     }
 
-    private String buildEmailBody(User user, Alert alert) {
+    /**
+     * ✅ NEW: Send password reset email
+     */
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String username, String resetLink) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("noreply@aqm-system.com");
+            message.setTo(toEmail);
+            message.setSubject("🔑 AQM System - Password Reset Request");
+            message.setText(buildPasswordResetEmailBody(username, resetLink));
+
+            mailSender.send(message);
+            log.info("✅ Password reset email sent to: {}", toEmail);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to send password reset email to {}: {}", toEmail, e.getMessage());
+            throw new RuntimeException("Failed to send password reset email", e);
+        }
+    }
+
+    /**
+     * ✅ EXISTING: Build alert email body
+     */
+    private String buildAlertEmailBody(User user, Alert alert) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String locationName = alert.getAqData() != null && alert.getAqData().getLocation() != null
                 ? alert.getAqData().getLocation().getName()
@@ -56,12 +83,12 @@ public class EmailService {
                 
                 We detected elevated air quality levels in your monitored area:
                 
-                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 📍 Location: %s
                 🌫️ Pollutant: %s
                 📊 Measured Value: %.1f %s
                 🕒 Time: %s
-                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 
                 ⚠️ Health Advisory:
                 %s
@@ -69,7 +96,7 @@ public class EmailService {
                 🔗 View full details:
                 https://aqm-system.com/alerts
                 
-                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 
                 🎄 Stay safe and have a healthy Christmas!
                 
@@ -87,6 +114,49 @@ public class EmailService {
         );
     }
 
+    /**
+     * ✅ NEW: Build password reset email body
+     */
+    private String buildPasswordResetEmailBody(String username, String resetLink) {
+        return String.format(
+                """
+                🔑 AQM System - Password Reset Request
+                
+                Hello %s,
+                
+                We received a request to reset your password for your AQM System account.
+                
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                
+                🔗 Click the link below to reset your password:
+                
+                %s
+                
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                
+                ⚠️ Important Security Information:
+                
+                • This link will expire in 15 minutes
+                • If you didn't request this reset, please ignore this email
+                • Your password will remain unchanged until you create a new one
+                • Never share this link with anyone
+                
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                
+                Need help? Contact our support team at support@aqm-system.com
+                
+                ---
+                🎄 AQM Winter - Christmas 2025 Edition
+                Air Quality Monitoring System
+                """,
+                username,
+                resetLink
+        );
+    }
+
+    /**
+     * ✅ EXISTING: Get unit for pollutant
+     */
     private String getUnit(String pollutant) {
         return switch (pollutant.toUpperCase()) {
             case "AQI" -> "";
@@ -95,6 +165,9 @@ public class EmailService {
         };
     }
 
+    /**
+     * ✅ EXISTING: Get health advisory
+     */
     private String getHealthAdvisory(String pollutant, Float value) {
         if (pollutant.equalsIgnoreCase("AQI")) {
             if (value > 150) return "🔴 UNHEALTHY: Sensitive groups should limit outdoor activities.";

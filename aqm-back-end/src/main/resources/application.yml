@@ -35,7 +35,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: lethaitrung03@gmail.com  # Set in environment variable or .env
-    password: sgde ysqh qteq tliz  # Use Gmail App Password, NOT your regular password
+    password: mmtu gqbv mxoj dhas  # Use Gmail App Password, NOT your regular password
     properties:
       mail:
         smtp:

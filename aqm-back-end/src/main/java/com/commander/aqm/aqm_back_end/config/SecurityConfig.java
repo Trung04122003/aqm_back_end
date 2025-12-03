@@ -89,8 +89,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         // ✅ NEW: Profile endpoints - authenticated users
-                        .requestMatchers("/api/user/profile/**").authenticated()
-                        .requestMatchers("/api/user/test-email").authenticated()
+                        .requestMatchers("/api/user/**").authenticated()
 
                         // All other endpoints - REQUIRE AUTHENTICATION
                         .anyRequest().authenticated()
