@@ -42,6 +42,9 @@ public class AdminController {
     private final ReportRepository reportRepo;
     private final AirQualityDataRepository airRepo; // ✅ ADD THIS LINE
     private final PdfReportService pdfReportService;
+    private final CsvReportService csvReportService;
+    private final ExcelReportService excelReportService;
+    private final HtmlReportService htmlReportService;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -430,26 +433,103 @@ public class AdminController {
         }
     }
 
-    // ✅ ADD: Download report as PDF
-    // ✅ FIXED: Download report as PDF with real data
-    @GetMapping("/reports/{id}/download")
-    public ResponseEntity<byte[]> downloadReport(@PathVariable Long id) {
+    // ✅ 1. CSV Export
+    @GetMapping("/reports/{id}/export/csv")
+    public ResponseEntity<byte[]> exportReportCsv(@PathVariable Long id) {
         try {
-            // Get report
             Report report = reportRepo.findById(id)
                     .orElseThrow(() -> new RuntimeException("Report not found"));
 
-            // Generate PDF
+            byte[] csvBytes = csvReportService.generateReportCsv(report);
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=report_" + id + ".csv")
+                    .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                    .body(csvBytes);
+
+        } catch (Exception e) {
+            System.err.println("❌ CSV Export error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ 2. Excel Export
+    @GetMapping("/reports/{id}/export/excel")
+    public ResponseEntity<byte[]> exportReportExcel(@PathVariable Long id) {
+        try {
+            Report report = reportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
+
+            byte[] excelBytes = excelReportService.generateReportExcel(report);
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=report_" + id + ".xlsx")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(excelBytes);
+
+        } catch (Exception e) {
+            System.err.println("❌ Excel Export error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ 3. HTML Export
+    @GetMapping("/reports/{id}/export/html")
+    public ResponseEntity<byte[]> exportReportHtml(@PathVariable Long id) {
+        try {
+            Report report = reportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
+
+            byte[] htmlBytes = htmlReportService.generateReportHtml(report);
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=report_" + id + ".html")
+                    .contentType(MediaType.TEXT_HTML)
+                    .body(htmlBytes);
+
+        } catch (Exception e) {
+            System.err.println("❌ HTML Export error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ 4. JSON Export (Direct DTO)
+    @GetMapping("/reports/{id}/export/json")
+    public ResponseEntity<ReportDto> exportReportJson(@PathVariable Long id) {
+        try {
+            Report report = reportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=report_" + id + ".json")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ReportDto.from(report));
+
+        } catch (Exception e) {
+            System.err.println("❌ JSON Export error: " + e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ 5. PDF Export (existing - keep for reference)
+    @GetMapping("/reports/{id}/download")
+    public ResponseEntity<byte[]> downloadReport(@PathVariable Long id) {
+        try {
+            Report report = reportRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
+
             byte[] pdfBytes = pdfReportService.generateReportPdf(report);
 
-            // Return PDF
             return ResponseEntity.ok()
                     .header("Content-Disposition", "attachment; filename=report_" + id + ".pdf")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdfBytes);
 
         } catch (Exception e) {
-            System.err.println("❌ Download error: " + e.getMessage());
+            System.err.println("❌ PDF Download error: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
