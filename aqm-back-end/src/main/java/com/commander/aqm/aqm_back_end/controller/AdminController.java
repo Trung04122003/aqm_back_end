@@ -650,6 +650,54 @@ public class AdminController {
                     .body("Failed to delete ticket: " + e.getMessage());
         }
     }
+
+    // ==================== ALERT THRESHOLD MANAGEMENT ====================
+
+    // Thêm vào AdminController.java
+
+    @PostMapping("/locations")
+    public ResponseEntity<?> createLocation(@RequestBody Location location) {
+        try {
+            Location saved = locationRepo.save(location);
+            System.out.println("🎁 Location created!");
+            return ResponseEntity.ok(LocationDto.from(saved));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to create location");
+        }
+    }
+
+    @PutMapping("/locations/{id}")
+    public ResponseEntity<?> updateLocation(@PathVariable Long id, @RequestBody Location request) {
+        try {
+            Location location = locationRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Location not found"));
+
+            location.setName(request.getName());
+            location.setLatitude(request.getLatitude());
+            location.setLongitude(request.getLongitude());
+            if (request.getTimezone() != null) {
+                location.setTimezone(request.getTimezone());
+            }
+
+            locationRepo.save(location);
+            return ResponseEntity.ok(LocationDto.from(location));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to update location");
+        }
+    }
+
+    @DeleteMapping("/locations/{id}")
+    public ResponseEntity<?> deleteLocation(@PathVariable Long id) {
+        try {
+            if (!locationRepo.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+            locationRepo.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to delete location");
+        }
+    }
 }
 
 // ==================== REQUEST DTOs ====================
