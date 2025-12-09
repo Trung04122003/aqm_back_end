@@ -26,7 +26,7 @@ public class SystemLogService {
         systemLogRepository.save(log);
     }
 
-    // overload để log nhanh
+    // overload Ä‘á»ƒ log nhanh
     public void info(String msg, String user) {
         log(LogLevel.INFO, msg, user);
     }
