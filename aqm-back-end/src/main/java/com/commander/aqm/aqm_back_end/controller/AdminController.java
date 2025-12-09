@@ -43,6 +43,7 @@ public class AdminController {
     private final ExcelReportService excelReportService;
     private final HtmlReportService htmlReportService;
     private final SupportRequestRepository supportRepo;
+    private final RealTimeAQIService realTimeAQIService;
 
     // ==================== USER MANAGEMENT ====================
 
@@ -651,9 +652,7 @@ public class AdminController {
         }
     }
 
-    // ==================== ALERT THRESHOLD MANAGEMENT ====================
-
-    // Thêm vào AdminController.java
+    // ==================== LOCATION MANAGEMENT ====================
 
     @PostMapping("/locations")
     public ResponseEntity<?> createLocation(@RequestBody Location location) {
@@ -697,6 +696,55 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to delete location");
         }
+    }
+
+    // ==================== REAL-TIME FETCHING DATA ====================
+    /**
+     * 🔄 Manual trigger to fetch AQI data for all locations
+     */
+    @PostMapping("/aqi/fetch-all")
+    public ResponseEntity<?> fetchAllAQI() {
+        try {
+            realTimeAQIService.fetchAllLocationsData();
+            return ResponseEntity.ok(Map.of(
+                    "message", "AQI data fetch initiated for all locations",
+                    "timestamp", LocalDateTime.now()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Failed to fetch AQI data: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 🎯 Manual trigger for specific location
+     */
+    @PostMapping("/aqi/fetch/{locationId}")
+    public ResponseEntity<?> fetchLocationAQI(@PathVariable Long locationId) {
+        try {
+            realTimeAQIService.manualFetchForLocation(locationId);
+            AirQualityData latest = realTimeAQIService.getLatestAQI(locationId);
+            return ResponseEntity.ok(Map.of(
+                    "message", "AQI data fetched successfully",
+                    "data", latest,
+                    "timestamp", LocalDateTime.now()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * 📊 Get latest AQI for location
+     */
+    @GetMapping("/aqi/latest/{locationId}")
+    public ResponseEntity<?> getLatestAQI(@PathVariable Long locationId) {
+        AirQualityData latest = realTimeAQIService.getLatestAQI(locationId);
+        if (latest == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(latest);
     }
 }
 
