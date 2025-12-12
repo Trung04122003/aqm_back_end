@@ -1,17 +1,17 @@
 // src/main/java/com/commander/aqm/aqm_back_end/config/DataSeeder.java
+// IMPROVED VERSION - Smart Seeding Strategy
+
 package com.commander.aqm.aqm_back_end.config;
 
 import com.commander.aqm.aqm_back_end.model.*;
 import com.commander.aqm.aqm_back_end.repository.*;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,9 +20,14 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 🇻🇳 Vietnam Cities Data Seeder
- * Seeds 6 major cities with realistic air quality data
+ * 🎯 SMART DATA SEEDER - Hybrid Strategy
+ *
+ * Modes:
+ * 1. INITIAL_SETUP: Seed cities + users only (let API fetch real data)
+ * 2. FULL_DEMO: Seed everything for offline demo
+ * 3. SKIP: Production mode (no seeding)
  */
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class DataSeeder {
@@ -41,67 +46,137 @@ public class DataSeeder {
 
     private final Random random = new Random();
 
+    // ✅ Configuration from application.yml
+    @Value("${aqm.seed.mode:INITIAL_SETUP}")
+    private String seedMode;
+
+    @Value("${aqm.seed.force:false}")
+    private boolean forceReseed;
+
     @Bean
-    public CommandLineRunner seedVietnamData() {
+    public CommandLineRunner seedData() {
         return args -> {
-            System.out.println("🇻🇳 ========== SEEDING VIETNAM CITIES DATA ==========");
+            log.info("🌱 ========== DATA SEEDER STARTING ==========");
+            log.info("🎯 Seed Mode: {}", seedMode);
 
-            // 👥 STEP 1: Seed Users (không cần list, chỉ call method)
-            seedUsers();
-            System.out.println("✅ Seeded users");
-
-            // 🌍 STEP 2: Seed Cities
-            seedVietnamCities();
-            System.out.println("✅ Seeded cities");
-
-            // Lấy admin và city đầu tiên từ repo (an toàn, tránh rỗng)
-            User admin = userRepo.findByUsername("admin").orElse(null);
-            Location firstCity = locationRepo.findAll().stream().findFirst().orElse(null);
-
-            if (admin == null || firstCity == null) {
-                System.out.println("⚠️ Skipping further seeding: Admin or cities not found");
-                return; // Thoát sớm nếu không có data cơ bản
+            // Check if already seeded (unless force = true)
+            if (!forceReseed && isAlreadySeeded()) {
+                log.info("✅ Database already has data. Skipping seeding.");
+                log.info("   (Set aqm.seed.force=true to force re-seed)");
+                return;
             }
 
-            // 🛰️ STEP 3: Seed Sensors
-            List<Sensor> sensors = seedSensors(locationRepo.findAll()); // Truyền full list cities
-            System.out.println("✅ Created " + sensors.size() + " sensors");
+            switch (seedMode.toUpperCase()) {
+                case "INITIAL_SETUP":
+                    runInitialSetup();
+                    break;
+                case "FULL_DEMO":
+                    runFullDemo();
+                    break;
+                case "SKIP":
+                    log.info("⏭️ Seeding skipped (production mode)");
+                    break;
+                default:
+                    log.warn("⚠️ Unknown seed mode: {}. Running INITIAL_SETUP.", seedMode);
+                    runInitialSetup();
+            }
 
-            // 🌫️ STEP 4: Seed Air Quality Data
-            seedAirQualityData(locationRepo.findAll(), sensors);
-            System.out.println("✅ Generated air quality data");
-
-            // 🌦️ STEP 5: Seed Weather Data
-            seedWeatherData(locationRepo.findAll());
-            System.out.println("✅ Generated weather data");
-
-            // 🔮 STEP 6: Seed Forecasts
-            seedForecasts(locationRepo.findAll());
-            System.out.println("✅ Generated forecasts");
-
-            // 🛡️ STEP 7: Seed Alert Thresholds
-            seedAlertThresholds(userRepo.findAll()); // Truyền full users từ repo
-            System.out.println("✅ Created alert thresholds");
-
-            // 🚨 STEP 8: Seed Alerts (sử dụng admin và firstCity)
-            seedAlerts(admin, firstCity);
-            System.out.println("✅ Generated sample alerts");
-
-            // 📊 STEP 9: Seed Reports
-            seedReports(admin, firstCity);
-            System.out.println("✅ Generated sample reports");
-
-            // 📩 STEP 10: Seed Support Requests
-            seedSupportRequests(admin);
-            System.out.println("✅ Created support requests");
-
-            System.out.println("🎉 ========== VIETNAM DATA SEEDING COMPLETE ==========");
+            log.info("🎉 ========== DATA SEEDING COMPLETE ==========");
         };
     }
 
     /**
-     * 👥 Seed Users (Admin + Regular Users)
+     * 🎯 MODE 1: INITIAL_SETUP
+     * Seeds essential data only:
+     * - Users (admin + test users)
+     * - Locations (cities)
+     * - Sensors
+     *
+     * Data will come from real API calls!
      */
+    private void runInitialSetup() {
+        log.info("🎯 Running INITIAL_SETUP mode...");
+        log.info("   → Will seed: Users, Cities, Sensors");
+        log.info("   → Real data from API: Air Quality, Weather, Forecasts");
+
+        seedUsers();
+        log.info("✅ Seeded users");
+
+        seedVietnamCities();
+        log.info("✅ Seeded {} cities", locationRepo.count());
+
+        List<Sensor> sensors = seedSensors(locationRepo.findAll());
+        log.info("✅ Created {} sensors", sensors.size());
+
+        // Alert thresholds for all users
+        seedAlertThresholds(userRepo.findAll());
+        log.info("✅ Created alert thresholds");
+
+        log.info("💡 TIP: Use 'Fetch New Data' button to get real AQI data!");
+    }
+
+    /**
+     * 🎯 MODE 2: FULL_DEMO
+     * Seeds everything for offline demo/testing
+     */
+    private void runFullDemo() {
+        log.info("🎯 Running FULL_DEMO mode...");
+        log.info("   → Will seed EVERYTHING (7 days of synthetic data)");
+
+        // Step 1: Basic setup
+        seedUsers();
+        log.info("✅ Seeded users");
+
+        seedVietnamCities();
+        log.info("✅ Seeded cities");
+
+        User admin = userRepo.findByUsername("admin").orElse(null);
+        Location firstCity = locationRepo.findAll().stream().findFirst().orElse(null);
+
+        if (admin == null || firstCity == null) {
+            log.error("❌ Failed to create admin or cities!");
+            return;
+        }
+
+        // Step 2: Sensors
+        List<Sensor> sensors = seedSensors(locationRepo.findAll());
+        log.info("✅ Created {} sensors", sensors.size());
+
+        // Step 3: Historical data (7 days)
+        seedAirQualityData(locationRepo.findAll(), sensors);
+        log.info("✅ Generated 7 days of air quality data");
+
+        seedWeatherData(locationRepo.findAll());
+        log.info("✅ Generated weather data");
+
+        seedForecasts(locationRepo.findAll());
+        log.info("✅ Generated forecasts");
+
+        // Step 4: User-specific data
+        seedAlertThresholds(userRepo.findAll());
+        log.info("✅ Created alert thresholds");
+
+        seedAlerts(admin, firstCity);
+        log.info("✅ Generated sample alerts");
+
+        seedReports(admin, firstCity);
+        log.info("✅ Generated sample reports");
+
+        seedSupportRequests(admin);
+        log.info("✅ Created support requests");
+
+        log.info("🎊 Full demo data ready!");
+    }
+
+    /**
+     * Check if database already has seeded data
+     */
+    private boolean isAlreadySeeded() {
+        return userRepo.count() > 0 && locationRepo.count() > 0;
+    }
+
+    // ==================== SEEDING METHODS (Keep Original Logic) ====================
+
     private List<User> seedUsers() {
         List<User> users = new ArrayList<>();
 
@@ -118,7 +193,7 @@ public class DataSeeder {
             users.add(userRepo.save(admin));
         }
 
-        // Regular users for each city
+        // Regular users
         String[] userNames = {"nguyen_van_a", "tran_thi_b", "le_van_c"};
         String[] fullNames = {"Nguyen Van A", "Tran Thi B", "Le Van C"};
         String[] emails = {"nguyenvana@aqm.vn", "tranthib@aqm.vn", "levanc@aqm.vn"};
@@ -140,13 +215,9 @@ public class DataSeeder {
         return users;
     }
 
-    /**
-     * 🇻🇳 Seed 6 Major Vietnam Cities
-     */
     private List<Location> seedVietnamCities() {
         List<Location> cities = new ArrayList<>();
 
-        // City data: [name, latitude, longitude]
         Object[][] cityData = {
                 {"Ha Noi", 21.0285, 105.8542},
                 {"Ho Chi Minh City", 10.8231, 106.6297},
@@ -172,14 +243,10 @@ public class DataSeeder {
         return cities;
     }
 
-    /**
-     * 🛰️ Create Sensors for each city
-     */
     private List<Sensor> seedSensors(List<Location> cities) {
         List<Sensor> sensors = new ArrayList<>();
 
         for (Location city : cities) {
-            // Create 2 sensors per city
             for (int i = 1; i <= 2; i++) {
                 Sensor sensor = Sensor.builder()
                         .serialNumber("VN-" + city.getName().substring(0, 3).toUpperCase() + "-" + i)
@@ -196,9 +263,16 @@ public class DataSeeder {
         return sensors;
     }
 
-    /**
-     * 🌫️ Generate realistic Air Quality Data for last 7 days
-     */
+    // ✅ KEEP ALL YOUR ORIGINAL METHODS:
+    // - seedAirQualityData()
+    // - seedWeatherData()
+    // - seedForecasts()
+    // - seedAlertThresholds()
+    // - seedAlerts()
+    // - seedReports()
+    // - seedSupportRequests()
+    // - Helper methods (getBaseAQIForCity, etc.)
+
     private void seedAirQualityData(List<Location> cities, List<Sensor> sensors) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -210,17 +284,14 @@ public class DataSeeder {
 
             if (sensor == null) continue;
 
-            // Get base pollution levels for each city
             int baseAQI = getBaseAQIForCity(city.getName());
 
-            // Generate data for last 7 days (hourly)
             for (int day = 7; day >= 0; day--) {
                 for (int hour = 0; hour < 24; hour++) {
                     LocalDateTime timestamp = now.minusDays(day).minusHours(hour);
 
-                    // Add realistic variations
                     int hourlyVariation = getHourlyVariation(hour);
-                    int dailyNoise = random.nextInt(21) - 10; // -10 to +10
+                    int dailyNoise = random.nextInt(21) - 10;
                     int aqi = Math.max(10, baseAQI + hourlyVariation + dailyNoise);
 
                     AirQualityData data = new AirQualityData();
@@ -241,18 +312,13 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 🌦️ Generate Weather Data
-     */
     private void seedWeatherData(List<Location> cities) {
         LocalDateTime now = LocalDateTime.now();
 
         for (Location city : cities) {
-            // Generate weather for last 24 hours
             for (int hour = 24; hour >= 0; hour--) {
                 LocalDateTime timestamp = now.minusHours(hour);
 
-                // Base temperature varies by city (North cooler than South)
                 float baseTemp = getBaseTempForCity(city.getName());
                 float hourlyTempVariation = getHourlyTempVariation(hour);
 
@@ -272,19 +338,14 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 🔮 Generate Forecasts (next 24 hours)
-     */
     private void seedForecasts(List<Location> cities) {
         LocalDateTime now = LocalDateTime.now();
 
         for (Location city : cities) {
             int baseAQI = getBaseAQIForCity(city.getName());
 
-            // Generate forecasts for next 24 hours (every 3 hours)
             for (int hour = 3; hour <= 24; hour += 3) {
                 LocalDateTime forecastTime = now.plusHours(hour);
-
                 int predictedAQI = baseAQI + random.nextInt(21) - 10;
                 predictedAQI = Math.max(10, predictedAQI);
 
@@ -302,9 +363,6 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 🛡️ Create Alert Thresholds
-     */
     private void seedAlertThresholds(List<User> users) {
         for (User user : users) {
             if (thresholdRepo.findByUser(user).isEmpty()) {
@@ -319,20 +377,15 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 🚨 Generate Sample Alerts
-     */
     private void seedAlerts(User user, Location city) {
         AlertThreshold threshold = thresholdRepo.findByUser(user).orElse(null);
         if (threshold == null) return;
 
-        // Get recent high pollution data
         List<AirQualityData> recentData = airRepo.findByLocationIdAndTimestampUtcAfter(
                 city.getId(),
                 LocalDateTime.now().minusDays(1)
         );
 
-        // Create alerts for high pollution events
         for (AirQualityData data : recentData) {
             if (data.getAqi() != null && data.getAqi() > 100) {
                 Alert alert = Alert.builder()
@@ -350,9 +403,6 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 📊 Generate Sample Reports
-     */
     private void seedReports(User user, Location city) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime weekAgo = now.minusDays(7);
@@ -408,9 +458,6 @@ public class DataSeeder {
         }
     }
 
-    /**
-     * 📩 Create Support Requests
-     */
     private void seedSupportRequests(User user) {
         String[] subjects = {
                 "Sensor not updating",
@@ -438,14 +485,11 @@ public class DataSeeder {
 
     // ==================== HELPER METHODS ====================
 
-    /**
-     * Base AQI for each city (realistic averages)
-     */
     private int getBaseAQIForCity(String cityName) {
         return switch (cityName) {
-            case "Ha Noi" -> 95;  // Higher pollution
+            case "Ha Noi" -> 95;
             case "Ho Chi Minh City" -> 85;
-            case "Da Nang" -> 55;  // Better air quality
+            case "Da Nang" -> 55;
             case "Hai Phong" -> 75;
             case "Can Tho" -> 65;
             case "Hue" -> 60;
@@ -453,13 +497,10 @@ public class DataSeeder {
         };
     }
 
-    /**
-     * Base temperature for each city
-     */
     private float getBaseTempForCity(String cityName) {
         return switch (cityName) {
-            case "Ha Noi" -> 22f;  // Cooler
-            case "Ho Chi Minh City" -> 29f;  // Hot
+            case "Ha Noi" -> 22f;
+            case "Ho Chi Minh City" -> 29f;
             case "Da Nang" -> 26f;
             case "Hai Phong" -> 23f;
             case "Can Tho" -> 28f;
@@ -468,28 +509,19 @@ public class DataSeeder {
         };
     }
 
-    /**
-     * Hourly variation (higher pollution during rush hours)
-     */
     private int getHourlyVariation(int hour) {
-        if (hour >= 7 && hour <= 9) return 15;  // Morning rush
-        if (hour >= 17 && hour <= 19) return 20; // Evening rush
-        if (hour >= 22 || hour <= 5) return -10; // Night (cleaner)
+        if (hour >= 7 && hour <= 9) return 15;
+        if (hour >= 17 && hour <= 19) return 20;
+        if (hour >= 22 || hour <= 5) return -10;
         return 0;
     }
 
-    /**
-     * Hourly temperature variation
-     */
     private float getHourlyTempVariation(int hour) {
-        if (hour >= 12 && hour <= 15) return 3f;  // Afternoon hot
-        if (hour >= 0 && hour <= 6) return -3f;   // Night cool
+        if (hour >= 12 && hour <= 15) return 3f;
+        if (hour >= 0 && hour <= 6) return -3f;
         return 0f;
     }
 
-    /**
-     * Calculate PM2.5 from AQI (simplified EPA formula)
-     */
     private Float calculatePM25FromAQI(int aqi) {
         if (aqi <= 50) return aqi * 12f / 50f;
         if (aqi <= 100) return 12.1f + (aqi - 51) * 23.9f / 49f;
@@ -497,49 +529,7 @@ public class DataSeeder {
         return 55.5f + (aqi - 151) * 94.5f / 49f;
     }
 
-    /**
-     * Calculate PM10 from AQI (simplified)
-     */
     private Float calculatePM10FromAQI(int aqi) {
         return calculatePM25FromAQI(aqi) * 1.8f;
-    }
-
-    // You can add seasonal multipliers:
-    private float getSeasonalMultiplier() {
-        int month = LocalDateTime.now().getMonthValue();
-        if (month >= 11 || month <= 2) return 1.3f; // Winter - worse
-        if (month >= 6 && month <= 8) return 0.8f;  // Rainy - better
-        return 1.0f;
-    }
-
-    // ==================== DATABASE RESET ====================
-
-    @Component
-    @Profile("reset")
-    @RequiredArgsConstructor
-    public static class DatabaseResetRunner implements CommandLineRunner {
-
-        private final EntityManager entityManager;
-
-        @Transactional
-        @Override
-        public void run(String... args) {
-            System.out.println("⚠️ Resetting database tables...");
-
-            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE air_quality_data").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE Alert").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE alert_threshold").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE Forecast").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE weather_data").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE Report").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE support_request").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE Sensor").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE Location").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE `User`").executeUpdate();
-            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
-
-            System.out.println("✅ Database reset complete!");
-        }
     }
 }
