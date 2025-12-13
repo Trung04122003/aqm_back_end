@@ -90,6 +90,7 @@ public class SecurityConfig {
 
                         // ✅ NEW: Profile endpoints - authenticated users
                         .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/api/aqi/**").authenticated()  // ✅ ADD THIS
 
                         // All other endpoints - REQUIRE AUTHENTICATION
                         .anyRequest().authenticated()
