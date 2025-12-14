@@ -175,7 +175,7 @@ public class DataSeeder {
         return userRepo.count() > 0 && locationRepo.count() > 0;
     }
 
-    // ==================== SEEDING METHODS (Keep Original Logic) ====================
+    // ==================== SEEDING METHODS ====================
 
     private List<User> seedUsers() {
         List<User> users = new ArrayList<>();
@@ -215,16 +215,78 @@ public class DataSeeder {
         return users;
     }
 
+    // ✅ FIXED: 63 VIETNAM PROVINCES
     private List<Location> seedVietnamCities() {
         List<Location> cities = new ArrayList<>();
 
         Object[][] cityData = {
+                // Northern Vietnam (24 provinces)
                 {"Ha Noi", 21.0285, 105.8542},
-                {"Ho Chi Minh City", 10.8231, 106.6297},
-                {"Da Nang", 16.0544, 108.2022},
                 {"Hai Phong", 20.8449, 106.6881},
+                {"Quang Ninh", 21.0064, 107.2925},
+                {"Bac Ninh", 21.1861, 106.0763},
+                {"Hai Duong", 20.9373, 106.3145},
+                {"Hung Yen", 20.6464, 106.0511},
+                {"Vinh Phuc", 21.3609, 105.5474},
+                {"Thai Nguyen", 21.5671, 105.8252},
+                {"Bac Giang", 21.2819, 106.1975},
+                {"Lang Son", 21.8536, 106.7610},
+                {"Cao Bang", 22.6356, 106.2522},
+                {"Ha Giang", 22.8025, 104.9784},
+                {"Tuyen Quang", 21.8267, 105.2280},
+                {"Phu Tho", 21.2683, 105.2045},
+                {"Lao Cai", 22.4809, 103.9755},
+                {"Yen Bai", 21.7168, 104.8986},
+                {"Lai Chau", 22.3864, 103.4702},
+                {"Dien Bien", 21.8042, 103.1076},
+                {"Son La", 21.1022, 103.7289},
+                {"Hoa Binh", 20.6861, 105.3131},
+                {"Ninh Binh", 20.2506, 105.9745},
+                {"Nam Dinh", 20.4388, 106.1621},
+                {"Thai Binh", 20.4464, 106.3365},
+                {"Ha Nam", 20.5835, 105.9230},
+
+                // Central Vietnam (19 provinces)
+                {"Thanh Hoa", 19.8067, 105.7851},
+                {"Nghe An", 19.2342, 104.9200},
+                {"Ha Tinh", 18.3559, 105.8877},
+                {"Quang Binh", 17.4739, 106.6229},
+                {"Quang Tri", 16.7943, 107.1856},
+                {"Thua Thien Hue", 16.4637, 107.5909},
+                {"Da Nang", 16.0544, 108.2022},
+                {"Quang Nam", 15.5394, 108.0191},
+                {"Quang Ngai", 15.1214, 108.8044},
+                {"Binh Dinh", 13.7830, 109.2196},
+                {"Phu Yen", 13.0882, 109.0929},
+                {"Khanh Hoa", 12.2585, 109.0526},
+                {"Ninh Thuan", 11.6739, 108.8629},
+                {"Binh Thuan", 10.9265, 108.0720},
+                {"Kon Tum", 14.3497, 108.0004},
+                {"Gia Lai", 13.9830, 108.0009},
+                {"Dak Lak", 12.7100, 108.2378},
+                {"Dak Nong", 12.2646, 107.6098},
+                {"Lam Dong", 11.5753, 108.1429},
+
+                // Southern Vietnam (20 provinces)
+                {"Ho Chi Minh City", 10.8231, 106.6297},
+                {"Ba Ria - Vung Tau", 10.5417, 107.2429},
+                {"Binh Duong", 11.3254, 106.4770},
+                {"Binh Phuoc", 11.7511, 106.7234},
+                {"Dong Nai", 10.9599, 107.1676},
+                {"Tay Ninh", 11.3351, 106.0979},
+                {"Long An", 10.5355, 106.4056},
+                {"Tien Giang", 10.4493, 106.3420},
+                {"Ben Tre", 10.2433, 106.3757},
+                {"Vinh Long", 10.2397, 105.9571},
+                {"Tra Vinh", 9.8124, 106.2992},
+                {"Dong Thap", 10.4938, 105.6881},
+                {"An Giang", 10.5216, 105.1258},
+                {"Kien Giang", 10.0125, 105.0810},
                 {"Can Tho", 10.0452, 105.7469},
-                {"Hue", 16.4637, 107.5909}
+                {"Hau Giang", 9.7571, 105.6412},
+                {"Soc Trang", 9.6028, 105.9739},
+                {"Bac Lieu", 9.2515, 105.7346},
+                {"Ca Mau", 9.1526, 105.1960},
         };
 
         for (Object[] data : cityData) {
@@ -247,31 +309,20 @@ public class DataSeeder {
         List<Sensor> sensors = new ArrayList<>();
 
         for (Location city : cities) {
-            for (int i = 1; i <= 2; i++) {
-                Sensor sensor = Sensor.builder()
-                        .serialNumber("VN-" + city.getName().substring(0, 3).toUpperCase() + "-" + i)
-                        .model("AQM-Pro-2024")
-                        .sensorType("AirQuality")
-                        .installationDate(LocalDate.now().minusMonths(6))
-                        .status(SensorStatus.ACTIVE)
-                        .location(city)
-                        .build();
-                sensors.add(sensorRepo.save(sensor));
-            }
+            // Only 1 sensor per province for simplicity
+            Sensor sensor = Sensor.builder()
+                    .serialNumber("VN-" + city.getName().replace(" ", "").substring(0, Math.min(5, city.getName().length())).toUpperCase())
+                    .model("AQM-Pro-2024")
+                    .sensorType("AirQuality")
+                    .installationDate(LocalDate.now().minusMonths(6))
+                    .status(SensorStatus.ACTIVE)
+                    .location(city)
+                    .build();
+            sensors.add(sensorRepo.save(sensor));
         }
 
         return sensors;
     }
-
-    // ✅ KEEP ALL YOUR ORIGINAL METHODS:
-    // - seedAirQualityData()
-    // - seedWeatherData()
-    // - seedForecasts()
-    // - seedAlertThresholds()
-    // - seedAlerts()
-    // - seedReports()
-    // - seedSupportRequests()
-    // - Helper methods (getBaseAQIForCity, etc.)
 
     private void seedAirQualityData(List<Location> cities, List<Sensor> sensors) {
         LocalDateTime now = LocalDateTime.now();
@@ -485,28 +536,62 @@ public class DataSeeder {
 
     // ==================== HELPER METHODS ====================
 
+    // ✅ UPDATED: AQI for all 63 provinces
     private int getBaseAQIForCity(String cityName) {
-        return switch (cityName) {
-            case "Ha Noi" -> 95;
-            case "Ho Chi Minh City" -> 85;
-            case "Da Nang" -> 55;
-            case "Hai Phong" -> 75;
-            case "Can Tho" -> 65;
-            case "Hue" -> 60;
-            default -> 70;
-        };
+        // Northern - Generally higher pollution
+        if (cityName.equals("Ha Noi")) return 95;
+        if (cityName.equals("Hai Phong")) return 75;
+        if (cityName.equals("Bac Ninh") || cityName.equals("Hai Duong") || cityName.equals("Hung Yen")) return 80;
+        if (cityName.equals("Thai Nguyen") || cityName.equals("Bac Giang")) return 70;
+        if (cityName.equals("Quang Ninh")) return 65;
+
+        // Highland/Mountain - Better air
+        if (cityName.equals("Ha Giang") || cityName.equals("Lao Cai") || cityName.equals("Cao Bang") || cityName.equals("Lai Chau")) return 40;
+        if (cityName.equals("Dien Bien") || cityName.equals("Son La") || cityName.equals("Hoa Binh")) return 45;
+
+        // Central Coast - Moderate
+        if (cityName.equals("Da Nang")) return 55;
+        if (cityName.equals("Thua Thien Hue")) return 60;
+        if (cityName.equals("Quang Nam") || cityName.equals("Quang Ngai")) return 50;
+        if (cityName.equals("Khanh Hoa") || cityName.equals("Ninh Thuan") || cityName.equals("Binh Thuan")) return 55;
+
+        // Central Highland
+        if (cityName.equals("Kon Tum") || cityName.equals("Gia Lai") || cityName.equals("Dak Lak") ||
+                cityName.equals("Dak Nong") || cityName.equals("Lam Dong")) return 42;
+
+        // Southern - Urban areas higher
+        if (cityName.equals("Ho Chi Minh City")) return 85;
+        if (cityName.equals("Binh Duong") || cityName.equals("Dong Nai")) return 80;
+        if (cityName.equals("Ba Ria - Vung Tau")) return 65;
+
+        // Mekong Delta - Generally good
+        if (cityName.equals("Can Tho")) return 60;
+        if (cityName.equals("An Giang") || cityName.equals("Dong Thap") || cityName.equals("Vinh Long")) return 55;
+        if (cityName.equals("Ben Tre") || cityName.equals("Tra Vinh") || cityName.equals("Soc Trang") ||
+                cityName.equals("Bac Lieu") || cityName.equals("Ca Mau")) return 50;
+
+        return 65; // Default
     }
 
+    // ✅ UPDATED: Temperature for all 63 provinces
     private float getBaseTempForCity(String cityName) {
-        return switch (cityName) {
-            case "Ha Noi" -> 22f;
-            case "Ho Chi Minh City" -> 29f;
-            case "Da Nang" -> 26f;
-            case "Hai Phong" -> 23f;
-            case "Can Tho" -> 28f;
-            case "Hue" -> 25f;
-            default -> 26f;
-        };
+        // Northern provinces - cooler
+        if (cityName.equals("Ha Noi") || cityName.equals("Hai Phong")) return 22f;
+        if (cityName.contains("Cao Bang") || cityName.contains("Ha Giang") ||
+                cityName.contains("Lao Cai") || cityName.contains("Lai Chau")) return 18f;
+
+        // Central provinces
+        if (cityName.equals("Da Nang") || cityName.contains("Hue")) return 26f;
+
+        // Highland - cooler
+        if (cityName.contains("Lam Dong") || cityName.contains("Dak Lak") ||
+                cityName.contains("Kon Tum")) return 20f;
+
+        // Southern - hot
+        if (cityName.equals("Ho Chi Minh City")) return 29f;
+        if (cityName.equals("Can Tho") || cityName.contains("Mau")) return 28f;
+
+        return 26f; // Default
     }
 
     private int getHourlyVariation(int hour) {
