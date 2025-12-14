@@ -1,10 +1,12 @@
 package com.commander.aqm.aqm_back_end.repository;
 
+import com.commander.aqm.aqm_back_end.model.Status;
 import com.commander.aqm.aqm_back_end.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -24,4 +26,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // ✅ EXISTING: Check if email exists
     boolean existsByEmail(String email);
+
+    /**
+     * ✅ NEW: Find all users by status (for alert monitoring)
+     */
+    List<User> findByStatus(Status status);
+
+    /**
+     * ✅ NEW: Find users with email alerts enabled
+     */
+    List<User> findByEmailAlertsEnabledTrue();
 }

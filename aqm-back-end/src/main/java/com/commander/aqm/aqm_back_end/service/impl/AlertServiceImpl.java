@@ -84,12 +84,12 @@ public class AlertServiceImpl implements AlertService {
 
     @Override
     public List<Alert> getUnreadAlerts(User user) {
-        return alertRepo.findByUserAndIsReadFalse(user);
+        return alertRepo.findByUserAndIsReadFalseOrderByTriggeredAtDesc(user);
     }
 
     @Override
     public List<Alert> getAllAlerts(User user) {
-        return alertRepo.findByUser(user);
+        return alertRepo.findByUserOrderByTriggeredAtDesc(user);
     }
 
     @Override
