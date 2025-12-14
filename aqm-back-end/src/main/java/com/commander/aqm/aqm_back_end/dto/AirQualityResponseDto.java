@@ -6,13 +6,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * ✅ Standardized Air Quality Response
- * Matches Frontend expectations exactly
+ * 📊 Response DTO for Dashboard Air Quality Data
+ * Includes current reading + 24h history
  */
 @Data
 @Builder
@@ -20,58 +21,12 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class AirQualityResponseDto {
 
-    private CurrentAQI current;
-    private List<HistoryPoint> history;
+    private CurrentDataDto current;
+    private List<HistoryDataDto> history;
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class CurrentAQI {
-        private Integer aqi;
-        private Float pm25;
-        private Float pm10;
-        private Float no2;
-        private Float co;
-        private Float o3;
-        private Float so2;
-        private LocalDateTime timestamp;
-
-        public static CurrentAQI from(AirQualityData data) {
-            if (data == null) return null;
-
-            return CurrentAQI.builder()
-                    .aqi(data.getAqi())
-                    .pm25(data.getPm25())
-                    .pm10(data.getPm10())
-                    .no2(data.getNo2())
-                    .co(data.getCo())
-                    .o3(data.getO3())
-                    .so2(data.getSo2())
-                    .timestamp(data.getTimestampUtc())
-                    .build();
-        }
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class HistoryPoint {
-        private LocalDateTime ts;
-        private Integer value; // AQI value
-
-        public static HistoryPoint from(AirQualityData data) {
-            if (data == null) return null;
-
-            return HistoryPoint.builder()
-                    .ts(data.getTimestampUtc())
-                    .value(data.getAqi())
-                    .build();
-        }
-    }
-
-    // ✅ Factory method to create from data list
+    /**
+     * 🏭 Factory method to create from database entities
+     */
     public static AirQualityResponseDto from(List<AirQualityData> dataList) {
         if (dataList == null || dataList.isEmpty()) {
             return AirQualityResponseDto.builder()
@@ -80,17 +35,82 @@ public class AirQualityResponseDto {
                     .build();
         }
 
-        // Latest data point as current
-        AirQualityData latest = dataList.get(dataList.size() - 1);
+        // Sort by timestamp descending (newest first)
+        List<AirQualityData> sorted = dataList.stream()
+                .sorted((a, b) -> b.getTimestampUtc().compareTo(a.getTimestampUtc()))
+                .collect(Collectors.toList());
 
-        // All data points as history
-        List<HistoryPoint> history = dataList.stream()
-                .map(HistoryPoint::from)
+        // Current = most recent reading
+        AirQualityData latest = sorted.get(0);
+
+        // History = all readings
+        List<HistoryDataDto> historyList = sorted.stream()
+                .map(HistoryDataDto::from)
                 .collect(Collectors.toList());
 
         return AirQualityResponseDto.builder()
-                .current(CurrentAQI.from(latest))
-                .history(history)
+                .current(CurrentDataDto.from(latest))
+                .history(historyList)
                 .build();
+    }
+
+    // ==================== NESTED DTOs ====================
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CurrentDataDto {
+        private Long id;
+        private Long locationId;
+        private Float pm25;
+        private Float pm10;
+        private Integer aqi;
+        private Float no2;
+        private Float so2;
+        private Float co;
+        private Float o3;
+        private String timestampUtc;
+
+        public static CurrentDataDto from(AirQualityData data) {
+            if (data == null) return null;
+
+            return CurrentDataDto.builder()
+                    .id(data.getId())
+                    .locationId(data.getLocation().getId())
+                    .pm25(data.getPm25())
+                    .pm10(data.getPm10())
+                    .aqi(data.getAqi())
+                    .no2(data.getNO2())
+                    .so2(data.getSo2())
+                    .co(data.getCo())
+                    .o3(data.getO3())
+                    .timestampUtc(data.getTimestampUtc().toString())
+                    .build();
+        }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class HistoryDataDto {
+        private Long id;
+        private Long locationId;
+        private Float pm25;
+        private Float pm10;
+        private Integer aqi;
+        private String timestampUtc;
+
+        public static HistoryDataDto from(AirQualityData data) {
+            return HistoryDataDto.builder()
+                    .id(data.getId())
+                    .locationId(data.getLocation().getId())
+                    .pm25(data.getPm25())
+                    .pm10(data.getPm10())
+                    .aqi(data.getAqi())
+                    .timestampUtc(data.getTimestampUtc().toString())
+                    .build();
+        }
     }
 }

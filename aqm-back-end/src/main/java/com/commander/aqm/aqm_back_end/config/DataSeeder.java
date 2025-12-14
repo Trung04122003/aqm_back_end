@@ -301,7 +301,7 @@ public class DataSeeder {
                     data.setPm25(calculatePM25FromAQI(aqi));
                     data.setPm10(calculatePM10FromAQI(aqi));
                     data.setCo(0.3f + random.nextFloat() * 0.5f);
-                    data.setNo2(0.02f + random.nextFloat() * 0.03f);
+                    data.setNO2(0.02f + random.nextFloat() * 0.03f);
                     data.setO3(0.05f + random.nextFloat() * 0.05f);
                     data.setSo2(0.01f + random.nextFloat() * 0.02f);
                     data.setTimestampUtc(timestamp);

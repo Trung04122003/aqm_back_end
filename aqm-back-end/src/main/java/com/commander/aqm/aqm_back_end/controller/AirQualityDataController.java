@@ -8,12 +8,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/data")
 @Tag(name = "Air Quality Data", description = "Real-time and historical air quality data")
@@ -22,7 +24,11 @@ public class AirQualityDataController {
 
     private final AirQualityDataRepository dataRepo;
 
-    @Operation(summary = "Get air quality data for location")
+    /**
+     * ✅ FIXED: Get air quality data with proper response structure
+     * Frontend expects: { current: {...}, history: [...] }
+     */
+    @Operation(summary = "Get air quality data for location with history")
     @GetMapping
     public ResponseEntity<AirQualityResponseDto> getData(
             @Parameter(description = "Location ID", required = true)
@@ -31,16 +37,40 @@ public class AirQualityDataController {
             @Parameter(description = "Time range (e.g., 24h, 7d, 30d)", example = "24h")
             @RequestParam(defaultValue = "24h") String range
     ) {
-        // ✅ Parse time range
-        LocalDateTime start = LocalDateTime.now().minusHours(parseHours(range));
+        try {
+            log.info("📊 Fetching AQI data for location: {}, range: {}", locationId, range);
 
-        // ✅ Get data from repository
-        List<AirQualityData> data = dataRepo.findByLocationIdAndTimestampUtcAfter(locationId, start);
+            // Parse time range
+            LocalDateTime startTime = LocalDateTime.now().minusHours(parseHours(range));
 
-        // ✅ Convert to standardized DTO
-        AirQualityResponseDto response = AirQualityResponseDto.from(data);
+            // Get data from database
+            List<AirQualityData> data = dataRepo.findByLocationIdAndTimestampUtcAfter(locationId, startTime);
 
-        return ResponseEntity.ok(response);
+            log.info("✅ Found {} data points for location {}", data.size(), locationId);
+
+            // Convert to standardized response DTO
+            AirQualityResponseDto response = AirQualityResponseDto.from(data);
+
+            // Log response structure
+            if (response.getCurrent() != null) {
+                log.info("📈 Current AQI: {}, PM2.5: {}",
+                        response.getCurrent().getAqi(),
+                        response.getCurrent().getPm25());
+            } else {
+                log.warn("⚠️ No current data available for location {}", locationId);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("❌ Error fetching AQI data: {}", e.getMessage(), e);
+
+            // Return empty response instead of error
+            return ResponseEntity.ok(AirQualityResponseDto.builder()
+                    .current(null)
+                    .history(List.of())
+                    .build());
+        }
     }
 
     /**
@@ -56,9 +86,9 @@ public class AirQualityDataController {
             } else if (range.endsWith("w")) {
                 return Long.parseLong(range.replace("w", "")) * 24 * 7;
             }
-            // Default to 24 hours if format is invalid
-            return 24L;
+            return 24L; // Default to 24 hours
         } catch (NumberFormatException e) {
+            log.warn("⚠️ Invalid range format: {}, using default 24h", range);
             return 24L;
         }
     }

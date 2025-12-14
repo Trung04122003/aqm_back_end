@@ -131,7 +131,7 @@ public class ExcelReportService {
             row.createCell(0).setCellValue(formatDate(d.getTimestampUtc()));
             row.createCell(1).setCellValue(d.getPm25() != null ? d.getPm25() : 0);
             row.createCell(2).setCellValue(d.getPm10() != null ? d.getPm10() : 0);
-            row.createCell(3).setCellValue(d.getNo2() != null ? d.getNo2() : 0);
+            row.createCell(3).setCellValue(d.getNO2() != null ? d.getNO2() : 0);
             row.createCell(4).setCellValue(d.getCo() != null ? d.getCo() : 0);
             row.createCell(5).setCellValue(d.getO3() != null ? d.getO3() : 0);
             row.createCell(6).setCellValue(d.getSo2() != null ? d.getSo2() : 0);
