@@ -17,5 +17,8 @@ public interface AirQualityDataRepository extends JpaRepository<AirQualityData, 
     List<AirQualityData> findByLocationIdAndTimestampUtcBetween(Long locationId, LocalDateTime from, LocalDateTime to);
 
     // ✅ ADD THIS NEW METHOD
+    /**
+     * Get latest AQI data for a location
+     */
     Optional<AirQualityData> findTopByLocationIdOrderByTimestampUtcDesc(Long locationId);
 }
