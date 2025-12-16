@@ -32,7 +32,7 @@ public class RealTimeWeatherService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${openweather.api.key:1ed284bcb1a6f5b2d3e432485840cda4}")
+    @Value("${openweather.api.key:8d5af07bbcf8969b864f267d5465e1d2}")
     private String openWeatherApiKey;
 
     /**
