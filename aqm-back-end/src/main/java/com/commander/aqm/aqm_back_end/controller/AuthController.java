@@ -4,10 +4,12 @@ import com.commander.aqm.aqm_back_end.dto.AuthResponse;
 import com.commander.aqm.aqm_back_end.dto.LoginRequest;
 import com.commander.aqm.aqm_back_end.dto.RegisterRequest;
 import com.commander.aqm.aqm_back_end.dto.UserDto;
+import com.commander.aqm.aqm_back_end.model.AlertThreshold; // ✅ ADD
 import com.commander.aqm.aqm_back_end.model.PasswordResetToken;
 import com.commander.aqm.aqm_back_end.model.Role;
 import com.commander.aqm.aqm_back_end.model.Status;
 import com.commander.aqm.aqm_back_end.model.User;
+import com.commander.aqm.aqm_back_end.repository.AlertThresholdRepository;
 import com.commander.aqm.aqm_back_end.repository.PasswordResetTokenRepository;
 import com.commander.aqm.aqm_back_end.repository.UserRepository;
 import com.commander.aqm.aqm_back_end.service.EmailService;
@@ -25,6 +27,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional; // ✅ ADD
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -44,19 +47,27 @@ public class AuthController {
     private final PasswordResetService resetService;
     private final EmailService emailService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final AlertThresholdRepository thresholdRepo; // ✅ ADD THIS
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
-    // ✅ ENDPOINT 1: User Registration (PUBLIC)
+    // ✅ ENDPOINT 1: User Registration (FIXED)
     @Operation(summary = "Register a new user")
     @PostMapping("/register")
+    @Transactional // ✅ ADD: Ensure both user and threshold are saved together
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 
         if (userRepo.existsByUsername(request.getUsername())) {
             return ResponseEntity.badRequest().body("Username already taken");
         }
 
+        // ✅ Check if email already exists
+        if (userRepo.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Email already taken");
+        }
+
+        // Create user
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -64,19 +75,45 @@ public class AuthController {
                 .fullName(request.getFullName())
                 .role(Role.USER)
                 .status(Status.ACTIVE)
+                .emailAlertsEnabled(false) // ✅ Default: no email alerts
                 .build();
 
         userRepo.save(user);
-        return ResponseEntity.ok("User registered successfully");
+
+        // ✅ NEW: Create default alert threshold for new user
+        AlertThreshold defaultThreshold = AlertThreshold.builder()
+                .user(user)
+                .pm25Threshold(35.0f)  // WHO guideline: 24-hour mean
+                .pm10Threshold(50.0f)  // WHO guideline: 24-hour mean
+                .aqiThreshold(100.0f)  // Moderate AQI threshold
+                .build();
+
+        thresholdRepo.save(defaultThreshold);
+
+        System.out.println("✅ User registered: " + user.getUsername());
+        System.out.println("✅ Default threshold created: PM2.5=" + defaultThreshold.getPm25Threshold()
+                + ", PM10=" + defaultThreshold.getPm10Threshold()
+                + ", AQI=" + defaultThreshold.getAqiThreshold());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "User registered successfully",
+                "username", user.getUsername(),
+                "thresholdCreated", true
+        ));
     }
 
-    // ✅ ENDPOINT 2: Admin Registration (PUBLIC - Self Registration)
+    // ✅ ENDPOINT 2: Admin Registration (FIXED)
     @Operation(summary = "Register a new admin")
     @PostMapping("/register-admin")
+    @Transactional // ✅ ADD
     public ResponseEntity<?> registerAdmin(@Valid @RequestBody RegisterRequest request) {
 
         if (userRepo.existsByUsername(request.getUsername())) {
             return ResponseEntity.badRequest().body("Username already taken");
+        }
+
+        if (userRepo.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Email already taken");
         }
 
         User admin = User.builder()
@@ -86,16 +123,35 @@ public class AuthController {
                 .fullName(request.getFullName())
                 .role(Role.ADMIN)
                 .status(Status.ACTIVE)
+                .emailAlertsEnabled(false)
                 .build();
 
         userRepo.save(admin);
-        return ResponseEntity.ok("Admin registered successfully");
+
+        // ✅ NEW: Create default threshold for admin too
+        AlertThreshold defaultThreshold = AlertThreshold.builder()
+                .user(admin)
+                .pm25Threshold(35.0f)
+                .pm10Threshold(50.0f)
+                .aqiThreshold(100.0f)
+                .build();
+
+        thresholdRepo.save(defaultThreshold);
+
+        System.out.println("✅ Admin registered: " + admin.getUsername());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Admin registered successfully",
+                "username", admin.getUsername(),
+                "thresholdCreated", true
+        ));
     }
 
     // ✅ ENDPOINT 3: Admin Registration (PROTECTED - Production Ready)
     @Operation(summary = "Create new admin (Admin only)")
     @PostMapping("/create-admin")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional // ✅ ADD
     public ResponseEntity<?> createAdmin(
             @Valid @RequestBody RegisterRequest request,
             @AuthenticationPrincipal UserDetails currentUser
@@ -105,6 +161,10 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Username already taken");
         }
 
+        if (userRepo.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Email already taken");
+        }
+
         User admin = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -112,16 +172,28 @@ public class AuthController {
                 .fullName(request.getFullName())
                 .role(Role.ADMIN)
                 .status(Status.ACTIVE)
+                .emailAlertsEnabled(false)
                 .build();
 
         userRepo.save(admin);
 
-        System.out.println("🔐 Admin created by: " + currentUser.getUsername());
+        // ✅ NEW: Create default threshold
+        AlertThreshold defaultThreshold = AlertThreshold.builder()
+                .user(admin)
+                .pm25Threshold(35.0f)
+                .pm10Threshold(50.0f)
+                .aqiThreshold(100.0f)
+                .build();
+
+        thresholdRepo.save(defaultThreshold);
+
+        System.out.println("🔒 Admin created by: " + currentUser.getUsername());
 
         return ResponseEntity.ok(Map.of(
                 "message", "Admin created successfully",
                 "username", admin.getUsername(),
-                "role", admin.getRole()
+                "role", admin.getRole(),
+                "thresholdCreated", true
         ));
     }
 
