@@ -1,6 +1,7 @@
 // aqm-back-end/src/main/java/.../controller/AdminController.java
 package com.commander.aqm.aqm_back_end.controller;
 
+import ch.qos.logback.classic.Logger;
 import com.commander.aqm.aqm_back_end.dto.*;
 import com.commander.aqm.aqm_back_end.model.*;
 import com.commander.aqm.aqm_back_end.repository.*;
@@ -736,15 +737,146 @@ public class AdminController {
     }
 
     /**
-     * 📊 Get latest AQI for location
+     * ✅ Get latest AQI for a specific location
      */
     @GetMapping("/aqi/latest/{locationId}")
     public ResponseEntity<?> getLatestAQI(@PathVariable Long locationId) {
-        AirQualityData latest = realTimeAQIService.getLatestAQI(locationId);
-        if (latest == null) {
-            return ResponseEntity.notFound().build();
+        try {
+            Optional<AirQualityData> latest = airRepo
+                    .findTopByLocationIdOrderByTimestampUtcDesc(locationId);
+
+            if (latest.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "locationId", locationId,
+                        "aqi", 0,
+                        "message", "No data available"
+                ));
+            }
+
+            AirQualityData data = latest.get();
+
+            return ResponseEntity.ok(Map.of(
+                    "locationId", locationId,
+                    "aqi", data.getAqi() != null ? data.getAqi() : 0,
+                    "pm25", data.getPm25() != null ? data.getPm25() : 0,
+                    "pm10", data.getPm10() != null ? data.getPm10() : 0,
+                    "timestamp", data.getTimestampUtc(),
+                    "location", data.getLocation().getName()
+            ));
+
+        } catch (Exception e) {
+            Logger log = null;
+            log.error("❌ Failed to get latest AQI for location {}: {}", locationId, e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to get AQI data",
+                    "locationId", locationId,
+                    "aqi", 0
+            ));
         }
-        return ResponseEntity.ok(latest);
+    }
+
+    /**
+     * ✅ Get latest AQI for ALL locations (optimized for dashboard)
+     */
+    @GetMapping("/aqi/all-latest")
+    public ResponseEntity<?> getAllLatestAQI() {
+        try {
+            Logger log = null;
+            log.info("📊 Fetching latest AQI for all locations...");
+
+            List<Location> locations = locationRepo.findAll();
+
+            Map<String, Object> result = new HashMap<>();
+            List<Map<String, Object>> locationsData = new ArrayList<>();
+
+            for (Location location : locations) {
+                Optional<AirQualityData> latest = airRepo
+                        .findTopByLocationIdOrderByTimestampUtcDesc(location.getId());
+
+                Map<String, Object> locData = new HashMap<>();
+                locData.put("id", location.getId());
+                locData.put("name", location.getName());
+
+                if (latest.isPresent()) {
+                    AirQualityData data = latest.get();
+                    locData.put("aqi", data.getAqi() != null ? data.getAqi() : 0);
+                    locData.put("pm25", data.getPm25() != null ? data.getPm25() : 0);
+                    locData.put("pm10", data.getPm10() != null ? data.getPm10() : 0);
+                    locData.put("timestamp", data.getTimestampUtc());
+                    locData.put("hasData", true);
+                } else {
+                    locData.put("aqi", 0);
+                    locData.put("pm25", 0);
+                    locData.put("pm10", 0);
+                    locData.put("timestamp", null);
+                    locData.put("hasData", false);
+                }
+
+                locationsData.add(locData);
+            }
+
+            result.put("locations", locationsData);
+            result.put("total", locations.size());
+            result.put("timestamp", LocalDateTime.now());
+
+            log.info("✅ Returned AQI data for {} locations", locations.size());
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            Logger log = null;
+            log.error("❌ Failed to get all latest AQI: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to get AQI data",
+                    "locations", new ArrayList<>()
+            ));
+        }
+    }
+
+    /**
+     * ✅ Get AQI statistics summary
+     */
+    @GetMapping("/aqi/summary")
+    public ResponseEntity<?> getAQISummary() {
+        try {
+            List<Location> locations = locationRepo.findAll();
+
+            int goodCount = 0;
+            int moderateCount = 0;
+            int unhealthyCount = 0;
+            int hazardousCount = 0;
+            int noDataCount = 0;
+
+            for (Location location : locations) {
+                Optional<AirQualityData> latest = airRepo
+                        .findTopByLocationIdOrderByTimestampUtcDesc(location.getId());
+
+                if (latest.isEmpty() || latest.get().getAqi() == null) {
+                    noDataCount++;
+                    continue;
+                }
+
+                int aqi = latest.get().getAqi();
+                if (aqi <= 50) goodCount++;
+                else if (aqi <= 100) moderateCount++;
+                else if (aqi <= 150) unhealthyCount++;
+                else hazardousCount++;
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "good", goodCount,
+                    "moderate", moderateCount,
+                    "unhealthy", unhealthyCount,
+                    "hazardous", hazardousCount,
+                    "noData", noDataCount,
+                    "total", locations.size()
+            ));
+
+        } catch (Exception e) {
+            Logger log = null;
+            log.error("❌ Failed to get AQI summary: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to get summary"));
+        }
     }
 }
 
