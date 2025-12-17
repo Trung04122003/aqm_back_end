@@ -180,9 +180,52 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
+    // ✅ FIXED: Get alerts with proper DTO mapping
     @GetMapping("/alerts")
-    public ResponseEntity<List<Alert>> getAllAlerts() {
-        return ResponseEntity.ok(alertRepo.findAll());
+    public ResponseEntity<?> getAllAlerts() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("🔐 /admin/alerts accessed by: " + auth.getName());
+
+            List<Alert> alerts = alertRepo.findAll();
+            System.out.println("📊 Found " + alerts.size() + " alerts");
+
+            // ✅ Map to DTO with user and location info
+            List<Map<String, Object>> alertDtos = alerts.stream()
+                    .map(alert -> {
+                        Map<String, Object> dto = new HashMap<>();
+                        dto.put("id", alert.getId());
+                        dto.put("pollutant", alert.getPollutant());
+                        dto.put("value", alert.getValue());
+                        dto.put("triggeredAt", alert.getTriggeredAt());
+                        dto.put("isRead", alert.getIsRead());
+
+                        // ✅ User info
+                        Map<String, Object> userInfo = new HashMap<>();
+                        userInfo.put("id", alert.getUser().getId());
+                        userInfo.put("username", alert.getUser().getUsername());
+                        dto.put("user", userInfo);
+
+                        // ✅ Location info
+                        Map<String, Object> locationInfo = new HashMap<>();
+                        locationInfo.put("id", alert.getAqData().getLocation().getId());
+                        locationInfo.put("name", alert.getAqData().getLocation().getName());
+                        dto.put("location", locationInfo);
+
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(alertDtos);
+
+        } catch (Exception e) {
+            System.err.println("❌ Error loading alerts: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to load alerts",
+                    "message", e.getMessage()
+            ));
+        }
     }
 
     @DeleteMapping("/alerts/{id}")
@@ -192,6 +235,48 @@ public class AdminController {
         }
         alertRepo.deleteById(id);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * ✅ Create test alert (for testing only)
+     */
+    @PostMapping("/alerts/test")
+    public ResponseEntity<?> createTestAlert() {
+        try {
+            // Get first user and first data point
+            User user = userRepo.findAll().stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("No users found"));
+
+            AirQualityData aqData = airRepo.findAll().stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("No AQI data found"));
+
+            AlertThreshold threshold = thresholdRepo.findByUser(user)
+                    .orElseThrow(() -> new RuntimeException("No threshold found"));
+
+            // Create test alert
+            Alert alert = Alert.builder()
+                    .user(user)
+                    .threshold(threshold)
+                    .aqData(aqData)
+                    .pollutant("PM2.5")
+                    .value(85.5f)
+                    .isRead(false)
+                    .triggeredAt(LocalDateTime.now())
+                    .status(Alert.AlertStatus.SENT)
+                    .build();
+
+            alertRepo.save(alert);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Test alert created",
+                    "alert", alert.getId()
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", e.getMessage()
+            ));
+        }
     }
 
     // ==================== THRESHOLD MANAGEMENT ====================
