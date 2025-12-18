@@ -50,3 +50,15 @@ waqi:
   api:
     token: ${WAQI_API_TOKEN:3c8fe25410427a3846b0b6897434a71c85d65c5d}
     base-url: https://api.waqi.info
+
+ai:
+  # Claude API settings
+  claude:
+    api-key: ${CLAUDE_API_KEY:NOT_SET}
+    api-url: https://api.anthropic.com/v1/messages
+    model: claude-sonnet-4-20250514
+    max-tokens: 2000
+
+  # Mock mode (true = use mock responses, false = use real API)
+  mock:
+    enabled: true  # Set to false when you have API key
